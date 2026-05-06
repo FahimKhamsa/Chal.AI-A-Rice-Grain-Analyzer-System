@@ -12,52 +12,73 @@ from typing import Dict, Optional
 from pydantic import BaseModel, Field
 
 
+# ── Nested output schemas ─────────────────────────────────────────────────────
+
+class GrainCountsOut(BaseModel):
+    healthy: int
+    threeQuarterBroken: int
+    halfBroken: int
+    impurity: int
+    discolored: int
+
+
+class LengthDistributionOut(BaseModel):
+    shortPct: float
+    mediumPct: float
+    longPct: float
+
+
+class DefectBreakdownOut(BaseModel):
+    chalkyPct: float
+    redStreakedPct: float
+    immaturePct: float
+    foreignMatterPct: float
+
+
 # ── Response ──────────────────────────────────────────────────────────────────
 
 class AnalysisResponse(BaseModel):
     """
     Payload returned by POST /api/v1/rice after a successful analysis run.
 
-    All images are JPEG-encoded and base64-encoded so they can be safely
-    transported in a JSON body without binary encoding issues.
+    Top-level fields mirror the Flutter AnalysisResult domain model so the
+    client can deserialise directly.  Raw reports and annotated images are
+    also included for debugging / future features.
     """
 
+    # ── Metadata ──────────────────────────────────────────────────────────────
+    id: str = Field(description="UUID for this analysis run.")
+    batchName: str = Field(description="Batch label forwarded from the request.")
+    analyzedAt: str = Field(description="ISO-8601 UTC timestamp of analysis completion.")
+    processingTimeMs: int = Field(description="Wall-clock inference time in milliseconds.")
+
+    # ── Core counts (Flutter GrainCounts) ─────────────────────────────────────
+    counts: GrainCountsOut
+
+    # ── Derived metrics ────────────────────────────────────────────────────────
+    integrityScore: float = Field(description="Healthy grains as % of total (0–100).")
+    detectedVariety: str = Field(default="Unknown")
+    varietyConfidence: float = Field(default=0.0)
+
+    # ── Chart data ─────────────────────────────────────────────────────────────
+    lengthDistribution: LengthDistributionOut
+    defectBreakdown: DefectBreakdownOut
+
+    # ── Raw reports (kept for debugging / future features) ────────────────────
     morphology_report: Dict[str, int] = Field(
-        description=(
-            "Grain counts by morphological category: "
-            "Healthy, 3/4 Broken, Half Broken, Impurity (Dust)."
-        )
+        description="Raw morphological grain counts from DINO+SAM pipeline."
     )
     color_report: Dict[str, int] = Field(
-        description="Grain counts by colour category: Standard Color, Discolored."
+        description="Raw colour grain counts from HSV analysis."
     )
     morphology_image_b64: Optional[str] = Field(
         default=None,
-        description="JPEG annotated image of morphology analysis, base64-encoded.",
+        description="JPEG annotated morphology image, base64-encoded.",
     )
     color_image_b64: Optional[str] = Field(
         default=None,
-        description="JPEG annotated image of colour analysis, base64-encoded.",
+        description="JPEG annotated colour image, base64-encoded.",
     )
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "morphology_report": {
-                    "Healthy": 28,
-                    "3/4 Broken": 2,
-                    "Half Broken": 1,
-                    "Impurity (Dust)": 1,
-                },
-                "color_report": {
-                    "Standard Color": 24,
-                    "Discolored": 4,
-                },
-                "morphology_image_b64": "<base64_jpeg_string>",
-                "color_image_b64": "<base64_jpeg_string>",
-            }
-        }
-    }
 
 
 # ── Error envelope (used for structured 422 / 500 responses) ─────────────────

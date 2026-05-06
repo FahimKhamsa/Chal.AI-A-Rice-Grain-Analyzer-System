@@ -2,13 +2,13 @@
 // Mock AI service that simulates network latency and returns realistic data.
 // Replace this class's implementation with real ML inference (e.g. tflite_flutter)
 // without changing any callers — the interface stays the same.
-import 'dart:io';
 import 'dart:math';
+import 'package:image_picker/image_picker.dart';
 import '../../../analysis/domain/models/analysis_result.dart';
 
 abstract class AiService {
   Future<AnalysisResult> analyzeImage({
-    required File imageFile,
+    required XFile imageFile,
     required String batchName,
   });
 }
@@ -18,7 +18,7 @@ class MockAiService implements AiService {
 
   @override
   Future<AnalysisResult> analyzeImage({
-    required File imageFile,
+    required XFile imageFile,
     required String batchName,
   }) async {
     // Simulate 1.5–3s processing time
@@ -27,9 +27,11 @@ class MockAiService implements AiService {
 
     // Randomize results slightly for demo variety
     final healthy = 280 + _rng.nextInt(60);
-    final broken = 20 + _rng.nextInt(40);
+    final threeQuarterBroken = 10 + _rng.nextInt(20);
+    final halfBroken = 8 + _rng.nextInt(20);
+    final impurity = 2 + _rng.nextInt(10);
     final discolored = 10 + _rng.nextInt(30);
-    final total = healthy + broken + discolored;
+    final total = healthy + threeQuarterBroken + halfBroken + impurity;
     final integrityScore = (healthy / total * 100);
 
     final varieties = ['Basmati', 'Jasmine', 'Ponni', 'Sona Masuri', 'Arborio'];
@@ -43,7 +45,9 @@ class MockAiService implements AiService {
       analyzedAt: DateTime.now(),
       counts: GrainCounts(
         healthy: healthy,
-        broken: broken,
+        threeQuarterBroken: threeQuarterBroken,
+        halfBroken: halfBroken,
+        impurity: impurity,
         discolored: discolored,
       ),
       detectedVariety: variety,

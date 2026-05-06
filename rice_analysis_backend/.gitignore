@@ -21,6 +21,7 @@ pip-delete-this-directory.txt
 
 # Model cache (can be very large)
 model_cache/
+app/models/
 *.bin
 *.safetensors
 

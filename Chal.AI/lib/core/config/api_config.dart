@@ -26,7 +26,7 @@ class ApiConfig {
   //    Example for physical device on same WiFi: 'http://192.168.1.105:8000'
 
   /// Analyze endpoint
-  static const String analyzeEndpoint = '$baseUrl/analyze';
+  static const String analyzeEndpoint = '$baseUrl/api/v1/rice';
 
   /// Health check endpoint
   static const String healthEndpoint = '$baseUrl/health';

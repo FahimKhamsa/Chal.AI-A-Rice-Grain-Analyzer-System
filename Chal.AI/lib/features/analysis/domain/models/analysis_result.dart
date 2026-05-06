@@ -2,21 +2,30 @@
 // Core domain model for an AI analysis result.
 // Passed between screens via go_router's `extra` parameter.
 // All fields have sensible defaults for mock/demo purposes.
+import 'dart:typed_data';
 
 class GrainCounts {
   final int healthy;
-  final int broken;
+  final int threeQuarterBroken;
+  final int halfBroken;
+  final int impurity;
   final int discolored;
 
   const GrainCounts({
     required this.healthy,
-    required this.broken,
+    required this.threeQuarterBroken,
+    required this.halfBroken,
+    required this.impurity,
     required this.discolored,
   });
 
-  int get total => healthy + broken + discolored;
+  // All categories are mutually exclusive — discolored grains are removed from morphology counts
+  int get total => healthy + threeQuarterBroken + halfBroken + impurity + discolored;
   double get healthyPct => total == 0 ? 0 : healthy / total * 100;
-  double get brokenPct => total == 0 ? 0 : broken / total * 100;
+  double get threeQuarterBrokenPct =>
+      total == 0 ? 0 : threeQuarterBroken / total * 100;
+  double get halfBrokenPct => total == 0 ? 0 : halfBroken / total * 100;
+  double get impurityPct => total == 0 ? 0 : impurity / total * 100;
   double get discoloredPct => total == 0 ? 0 : discolored / total * 100;
 }
 
@@ -49,7 +58,7 @@ class DefectBreakdown {
 class AnalysisResult {
   final String id;
   final String batchName;
-  final String imagePath; // local file path or asset path
+  final String imagePath; // local file path, blob URL, or empty
   final DateTime analyzedAt;
 
   // Core counts
@@ -69,6 +78,10 @@ class AnalysisResult {
   // Processing time for UI display
   final Duration processingTime;
 
+  // Annotated images returned by the backend (null for mock/demo results)
+  final Uint8List? morphologyImageBytes;
+  final Uint8List? colorImageBytes;
+
   const AnalysisResult({
     required this.id,
     required this.batchName,
@@ -81,6 +94,8 @@ class AnalysisResult {
     required this.lengthDistribution,
     required this.defectBreakdown,
     required this.processingTime,
+    this.morphologyImageBytes,
+    this.colorImageBytes,
   });
 
   // ── Mock factory for instant UI testing ──────────────────────────────────
@@ -93,7 +108,13 @@ class AnalysisResult {
       batchName: batchName,
       imagePath: imagePath,
       analyzedAt: DateTime.now(),
-      counts: const GrainCounts(healthy: 312, broken: 38, discolored: 22),
+      counts: const GrainCounts(
+        healthy: 312,
+        threeQuarterBroken: 22,
+        halfBroken: 16,
+        impurity: 8,
+        discolored: 18,
+      ),
       detectedVariety: 'Basmati',
       varietyConfidence: 92.4,
       integrityScore: 84.7,

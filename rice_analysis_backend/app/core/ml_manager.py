@@ -15,6 +15,7 @@ Usage (in endpoint):
     boxes, _ = detect_objects_dino(img, models.dino_model, models.dino_processor)
 """
 import logging
+import os
 
 import torch
 from transformers import (
@@ -27,6 +28,11 @@ from transformers import (
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Paths resolved relative to this file so they work regardless of working directory
+_APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DINO_PATH = os.path.join(_APP_DIR, "models", "dino")
+SAM_PATH = os.path.join(_APP_DIR, "models", "sam")
 
 
 class MLModels:
@@ -43,10 +49,16 @@ class MLModels:
 models = MLModels()
 
 
+def _model_source(local_path: str, hf_id: str) -> str:
+    """Return local path if weights exist there, otherwise fall back to HF id."""
+    return local_path if os.path.isdir(local_path) else hf_id
+
+
 def load_ai_models() -> None:
     """
-    Downloads (on first run) and loads DINO + SAM into the selected device
-    in half-precision (FP16) when a CUDA GPU is available, otherwise FP32.
+    Loads DINO + SAM from local disk (app/models/) when weights are present,
+    otherwise falls back to downloading from Hugging Face on first run.
+    Run download_weights.py once to populate local weights for instant startup.
 
     This should be called exactly once from the FastAPI startup event.
     """
@@ -54,24 +66,25 @@ def load_ai_models() -> None:
     compute_dtype = torch.float16 if device == "cuda" else torch.float32
     models.device = device
 
+    dino_source = _model_source(DINO_PATH, settings.DINO_MODEL_ID)
+    sam_source = _model_source(SAM_PATH, settings.SAM_MODEL_ID)
+
     logger.info("Loading AI models on device=%s dtype=%s …", device, compute_dtype)
 
     # ── Grounding DINO ────────────────────────────────────────────────────────
-    logger.info("Loading Grounding DINO  (%s) …", settings.DINO_MODEL_ID)
-    models.dino_processor = GroundingDinoProcessor.from_pretrained(
-        settings.DINO_MODEL_ID
-    )
+    logger.info("Loading Grounding DINO from %s …", dino_source)
+    models.dino_processor = GroundingDinoProcessor.from_pretrained(dino_source)
     models.dino_model = GroundingDinoForObjectDetection.from_pretrained(
-        settings.DINO_MODEL_ID,
+        dino_source,
         torch_dtype=compute_dtype,
     ).to(device)
     models.dino_model.eval()
 
     # ── SAM ───────────────────────────────────────────────────────────────────
-    logger.info("Loading SAM (%s) …", settings.SAM_MODEL_ID)
-    models.sam_processor = SamProcessor.from_pretrained(settings.SAM_MODEL_ID)
+    logger.info("Loading SAM from %s …", sam_source)
+    models.sam_processor = SamProcessor.from_pretrained(sam_source)
     models.sam_model = SamModel.from_pretrained(
-        settings.SAM_MODEL_ID,
+        sam_source,
         torch_dtype=compute_dtype,
     ).to(device)
     models.sam_model.eval()

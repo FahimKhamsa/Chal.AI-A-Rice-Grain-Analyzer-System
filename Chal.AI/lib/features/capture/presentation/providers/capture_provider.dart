@@ -1,7 +1,10 @@
 // features/capture/presentation/providers/capture_provider.dart
 // Riverpod StateNotifier that manages all camera/capture state.
 // Keeps UI code clean — screens just watch this notifier.
-import 'dart:io';
+//
+// Uses XFile (image_picker) + Uint8List bytes throughout so the code works
+// on Flutter web and native without any dart:io File.
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -17,7 +20,13 @@ enum CaptureStatus { idle, analyzing, done, error }
 
 class CaptureState {
   final String batchName;
-  final File? selectedImage;
+
+  /// Raw bytes for rendering — works on web and native via Image.memory.
+  final Uint8List? imageBytes;
+
+  /// Original XFile handle passed to the AI service.
+  final XFile? selectedXFile;
+
   final CaptureStatus status;
   final AnalysisResult? result;
   final String? errorMessage;
@@ -25,16 +34,20 @@ class CaptureState {
 
   const CaptureState({
     this.batchName = 'Batch A',
-    this.selectedImage,
+    this.imageBytes,
+    this.selectedXFile,
     this.status = CaptureStatus.idle,
     this.result,
     this.errorMessage,
     this.isFlashOn = false,
   });
 
+  bool get hasImage => imageBytes != null;
+
   CaptureState copyWith({
     String? batchName,
-    File? selectedImage,
+    Uint8List? imageBytes,
+    XFile? selectedXFile,
     CaptureStatus? status,
     AnalysisResult? result,
     String? errorMessage,
@@ -42,7 +55,8 @@ class CaptureState {
   }) {
     return CaptureState(
       batchName: batchName ?? this.batchName,
-      selectedImage: selectedImage ?? this.selectedImage,
+      imageBytes: imageBytes ?? this.imageBytes,
+      selectedXFile: selectedXFile ?? this.selectedXFile,
       status: status ?? this.status,
       result: result ?? this.result,
       errorMessage: errorMessage ?? this.errorMessage,
@@ -71,9 +85,7 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
       imageQuality: 90,
     );
     if (xfile == null) return null;
-    final file = File(xfile.path);
-    state = state.copyWith(selectedImage: file, status: CaptureStatus.analyzing);
-    return _runAnalysis(file);
+    return _startAnalysis(xfile);
   }
 
   Future<AnalysisResult?> captureFromCamera() async {
@@ -83,15 +95,24 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
       preferredCameraDevice: CameraDevice.rear,
     );
     if (xfile == null) return null;
-    final file = File(xfile.path);
-    state = state.copyWith(selectedImage: file, status: CaptureStatus.analyzing);
-    return _runAnalysis(file);
+    return _startAnalysis(xfile);
   }
 
-  Future<AnalysisResult?> _runAnalysis(File file) async {
+  Future<AnalysisResult?> _startAnalysis(XFile xfile) async {
+    // Load bytes immediately so the preview renders on all platforms
+    final bytes = await xfile.readAsBytes();
+    state = state.copyWith(
+      imageBytes: bytes,
+      selectedXFile: xfile,
+      status: CaptureStatus.analyzing,
+    );
+    return _runAnalysis(xfile);
+  }
+
+  Future<AnalysisResult?> _runAnalysis(XFile xfile) async {
     try {
       final result = await _aiService.analyzeImage(
-        imageFile: file,
+        imageFile: xfile,
         batchName: state.batchName,
       );
       state = state.copyWith(status: CaptureStatus.done, result: result);

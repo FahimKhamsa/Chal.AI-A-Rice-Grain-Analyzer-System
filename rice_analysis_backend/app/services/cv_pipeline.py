@@ -7,11 +7,12 @@ Every function here is *pure* with respect to the web layer — it takes numpy
 arrays / tensors and returns numpy arrays / dicts.  No FastAPI, no HTTP.
 
 Pipeline order:
-  1. detect_objects_dino  — Grounding DINO bounding-box detection
-  2. segment_objects_sam  — SAM mask segmentation using detected boxes
-  3. analyze_quality      — Morphological classification (Healthy / Broken / Dust)
-  4. analyze_color_hsv    — HSV-based colour anomaly detection
-  5. image_to_base64      — Utility: encode annotated image for JSON transport
+  1. detect_objects_dino      — Grounding DINO bounding-box detection
+  2. segment_objects_sam      — SAM mask segmentation using detected boxes
+  3. analyze_quality          — Morphological classification (collects grain records)
+  4. analyze_color_hsv        — HSV-based colour anomaly detection
+  5. draw_morphology_annotation — Combined annotation: discolored grains override colour
+  6. image_to_base64          — Utility: encode annotated image for JSON transport
 """
 import base64
 import logging
@@ -22,6 +23,9 @@ import torch
 import torchvision
 
 logger = logging.getLogger(__name__)
+
+# Orange border used for discolored grains in the combined morphology image.
+_DISCOLORED_COLOR: tuple[int, int, int] = (0, 0, 255)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -172,13 +176,12 @@ def segment_objects_sam(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 3 — Morphological quality analysis
+# Step 3 — Morphological quality analysis (collect records; do NOT draw yet)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def analyze_quality(
-    image_rgb: np.ndarray,
     masks: np.ndarray | list,
-) -> tuple[dict, np.ndarray | None, list]:
+) -> tuple[dict, list, list]:
     """
     Classify each grain by size relative to the median (healthy) grain.
 
@@ -188,18 +191,28 @@ def analyze_quality(
       • Half Broken    — 0.20 ≤ ratio < 0.50
       • Impurity (Dust)— ratio < 0.20
 
+    This function intentionally does NOT draw any annotation.  Drawing is
+    deferred to draw_morphology_annotation() so that colour-analysis results
+    can override the boundary colour for discolored grains.
+
     Args:
-        image_rgb: Original RGB image for annotation.
-        masks:     [N, H, W] binary float masks from SAM.
+        masks: [N, H, W] binary float masks from SAM.
 
     Returns:
-        (stats_dict, annotated_image_rgb, valid_masks_list)
-        valid_masks contains only non-dust grains (used for colour analysis).
+        (stats_dict, grain_records, valid_masks)
+
+        grain_records — one dict per grain:
+            rect        : cv2.minAreaRect result
+            morph_color : RGB tuple for morphology category
+            label       : text label drawn on the image
+            valid_idx   : index into valid_masks (-1 for impurity/dust grains)
+
+        valid_masks — non-dust masks in encounter order, passed to
+                      analyze_color_hsv() for colour analysis.
     """
     if len(masks) == 0:
-        return {}, None, []
+        return {}, [], []
 
-    annotated_img = image_rgb.copy()
     grain_data, areas = [], []
 
     for i, mask in enumerate(masks):
@@ -219,49 +232,55 @@ def analyze_quality(
         grain_data.append({"adjusted_area": adjusted_area, "rect": rect, "mask_idx": i})
 
     if not areas:
-        return {}, None, []
+        return {}, [], []
 
     baseline_area = float(np.median(areas))
     stats = {"Healthy": 0, "3/4 Broken": 0, "Half Broken": 0, "Impurity (Dust)": 0}
     valid_masks: list = []
+    grain_records: list = []
+    valid_idx = 0
 
     for grain in grain_data:
         ratio = grain["adjusted_area"] / baseline_area
-        rect = grain["rect"]
+        rect  = grain["rect"]
 
         if ratio < 0.20:
-            color = (255, 0, 255)
+            morph_color = (255, 0, 255)   # Magenta — Impurity
             stats["Impurity (Dust)"] += 1
             label = "Dust"
+            grain_valid_idx = -1          # Excluded from colour analysis
+            category = "Impurity (Dust)"
         else:
             valid_masks.append(masks[grain["mask_idx"]])
+            grain_valid_idx = valid_idx
+            valid_idx += 1
+
             if ratio >= 0.75:
-                color = (0, 255, 0)
+                morph_color = (0, 255, 0)     # Green — Healthy
                 stats["Healthy"] += 1
                 label = f"{ratio:.2f}x"
+                category = "Healthy"
             elif ratio >= 0.50:
-                color = (255, 255, 0)
+                morph_color = (255, 255, 0)   # Yellow — 3/4 Broken
                 stats["3/4 Broken"] += 1
                 label = f"{ratio:.2f}x"
+                category = "3/4 Broken"
             else:
-                color = (255, 0, 0)
+                morph_color = (255, 0, 0)     # Red — Half Broken
                 stats["Half Broken"] += 1
                 label = f"{ratio:.2f}x"
+                category = "Half Broken"
 
-        box = np.int32(cv2.boxPoints(rect))
-        cv2.drawContours(annotated_img, [box], 0, color, 2)
-        cv2.putText(
-            annotated_img,
-            label,
-            (int(rect[0][0]) - 15, int(rect[0][1]) - 10),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.4,
-            color,
-            1,
-        )
+        grain_records.append({
+            "rect":        rect,
+            "morph_color": morph_color,
+            "label":       label,
+            "valid_idx":   grain_valid_idx,
+            "category":    category,
+        })
 
     logger.debug("Morphology stats: %s", stats)
-    return stats, annotated_img, valid_masks
+    return stats, grain_records, valid_masks
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -274,7 +293,7 @@ def analyze_color_hsv(
     h_weight: float = 1.0,
     s_weight: float = 0.5,
     anomaly_threshold: float = 15.0,
-) -> tuple[dict, np.ndarray | None]:
+) -> tuple[dict, np.ndarray | None, set]:
     """
     Detect colour-discoloured grains by comparing each grain's mean HSV
     against the population median.
@@ -287,16 +306,20 @@ def analyze_color_hsv(
         anomaly_threshold: Threshold above which a grain is 'Discolored'.
 
     Returns:
-        (stats_dict, annotated_image_rgb)
+        (stats_dict, annotated_image_rgb, discolored_valid_indices)
+
+        discolored_valid_indices — set of 0-based indices into `masks` whose
+            grains were classified as Discolored.  Passed to
+            draw_morphology_annotation() to override their border colour.
     """
     if len(masks) == 0:
-        return {}, None
+        return {}, None, set()
 
     image_hsv = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2HSV)
     annotated_img = image_rgb.copy()
     grain_colors: list[dict] = []
 
-    for mask in masks:
+    for i, mask in enumerate(masks):
         bool_mask = mask > 0.5
         grain_pixels_hsv = image_hsv[bool_mask]
 
@@ -315,17 +338,19 @@ def analyze_color_hsv(
             cx, cy = 0, 0
 
         grain_colors.append(
-            {"H": mean_H, "S": mean_S, "cx": cx, "cy": cy, "mask": mask_uint8}
+            {"H": mean_H, "S": mean_S, "cx": cx, "cy": cy,
+             "mask": mask_uint8, "valid_idx": i}
         )
 
     if not grain_colors:
-        return {}, None
+        return {}, None, set()
 
     median_H = float(np.median([g["H"] for g in grain_colors]))
     median_S = float(np.median([g["S"] for g in grain_colors]))
 
     stats = {"Standard Color": 0, "Discolored": 0}
     color_overlay = np.zeros_like(annotated_img)
+    discolored_valid_indices: set[int] = set()
 
     for grain in grain_colors:
         # Circular hue difference (0-180 OpenCV hue range)
@@ -339,12 +364,13 @@ def analyze_color_hsv(
 
         if anomaly_score > anomaly_threshold:
             stats["Discolored"] += 1
-            overlay_color = [255, 0, 0]
-            text_color = (255, 0, 0)
+            overlay_color = [0, 0, 255]     # Blue overlay on color image
+            text_color    = (0, 0, 255)
+            discolored_valid_indices.add(grain["valid_idx"])
         else:
             stats["Standard Color"] += 1
             overlay_color = [0, 255, 0]
-            text_color = (0, 255, 0)
+            text_color    = (0, 255, 0)
 
         color_overlay[grain["mask"] > 0] = overlay_color
         cv2.putText(
@@ -358,5 +384,64 @@ def analyze_color_hsv(
         )
 
     annotated_img = cv2.addWeighted(annotated_img, 0.7, color_overlay, 0.3, 0)
-    logger.debug("Colour stats: %s", stats)
-    return stats, annotated_img
+    logger.debug("Colour stats: %s  |  discolored indices: %s", stats, discolored_valid_indices)
+    return stats, annotated_img, discolored_valid_indices
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 5 — Combined morphology annotation
+# ─────────────────────────────────────────────────────────────────────────────
+
+def draw_morphology_annotation(
+    image_rgb: np.ndarray,
+    grain_records: list,
+    discolored_valid_indices: set | None = None,
+) -> np.ndarray | None:
+    """
+    Draw oriented bounding boxes on a copy of image_rgb using grain_records
+    collected by analyze_quality().
+
+    Colour priority:
+      1. Orange (_DISCOLORED_COLOR) — grain's valid_idx is in
+         discolored_valid_indices (colour-analysis override).
+      2. Morphology colour — Green / Yellow / Red / Magenta as classified
+         by size ratio.
+
+    Args:
+        image_rgb:                 H×W×3 RGB uint8 source image.
+        grain_records:             List of dicts from analyze_quality().
+        discolored_valid_indices:  Set of valid_mask indices flagged by
+                                   analyze_color_hsv() as discolored.
+
+    Returns:
+        Annotated RGB image, or None if grain_records is empty.
+    """
+    if not grain_records:
+        return None
+
+    discolored = discolored_valid_indices or set()
+    annotated_img = image_rgb.copy()
+
+    for record in grain_records:
+        valid_idx = record["valid_idx"]
+
+        # Discolored overrides morphology colour (impurity grains are
+        # excluded from colour analysis so valid_idx == -1 is never in the set)
+        if valid_idx != -1 and valid_idx in discolored:
+            color = _DISCOLORED_COLOR
+        else:
+            color = record["morph_color"]
+
+        box = np.int32(cv2.boxPoints(record["rect"]))
+        cv2.drawContours(annotated_img, [box], 0, color, 2)
+        cv2.putText(
+            annotated_img,
+            record["label"],
+            (int(record["rect"][0][0]) - 15, int(record["rect"][0][1]) - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.4,
+            color,
+            1,
+        )
+
+    return annotated_img

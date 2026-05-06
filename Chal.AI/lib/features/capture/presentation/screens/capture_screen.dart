@@ -2,7 +2,7 @@
 // Screen A — Complete restructure.
 // Layout: Logo header → Hero capture card → Batch field → Two action buttons
 // No scan lines, no corner brackets, no overlapping overlays.
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -97,7 +97,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                           children: [
                             // ── Hero capture card ────────────────────
                             _HeroCaptureCard(
-                              selectedImage: state.selectedImage,
+                              imageBytes: state.imageBytes,
                               onCameraTap: () => notifier.captureFromCamera(),
                             ),
 
@@ -228,17 +228,17 @@ class _Header extends StatelessWidget {
 
 // ─── Hero Capture Card ────────────────────────────────────────────────────────
 // Large tappable card — camera icon when empty, image preview when a photo
-// has been picked. Clean, no overlays.
+// has been picked. Uses Image.memory so it works on web and native.
 
 class _HeroCaptureCard extends StatelessWidget {
-  final File? selectedImage;
+  final Uint8List? imageBytes;
   final VoidCallback onCameraTap;
   const _HeroCaptureCard(
-      {required this.selectedImage, required this.onCameraTap});
+      {required this.imageBytes, required this.onCameraTap});
 
   @override
   Widget build(BuildContext context) {
-    final hasImage = selectedImage != null;
+    final hasImage = imageBytes != null;
 
     return GestureDetector(
       onTap: onCameraTap,
@@ -260,7 +260,7 @@ class _HeroCaptureCard extends StatelessWidget {
             ? Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.file(selectedImage!, fit: BoxFit.cover),
+                  Image.memory(imageBytes!, fit: BoxFit.cover),
                   // Tap-to-retake overlay
                   Positioned(
                     bottom: 12,

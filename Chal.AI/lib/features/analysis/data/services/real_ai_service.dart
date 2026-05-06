@@ -3,10 +3,13 @@
 // Concrete implementation of AiService that calls the FastAPI backend.
 // Sends the image as multipart/form-data and parses the JSON response
 // into an AnalysisResult domain object.
+//
+// Uses XFile (from image_picker) instead of dart:io File so this service
+// works on Flutter web as well as native platforms.
 
-import 'dart:io';
-import 'package:flutter/foundation.dart'; // For debugPrint
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 
 import '../../../../core/config/api_config.dart';
@@ -21,37 +24,36 @@ class RealAiService implements AiService {
 
   @override
   Future<AnalysisResult> analyzeImage({
-    required File imageFile,
+    required XFile imageFile,
     required String batchName,
   }) async {
     debugPrint('=== [RealAiService] Starting Analysis ===');
     debugPrint('--> Target backend URL: ${ApiConfig.analyzeEndpoint}');
     debugPrint('--> Batch Name: $batchName');
-    
-    final fileSize = await imageFile.length();
-    debugPrint('--> Image Size: ${(fileSize / 1024).toStringAsFixed(2)} KB');
 
     // ── 1. Build multipart request ─────────────────────────────────────────
     final uri = Uri.parse(ApiConfig.analyzeEndpoint);
     final request = http.MultipartRequest('POST', uri);
 
-    // Attach the image file
+    // Read bytes once — works on both web and native
+    final imageBytes = await imageFile.readAsBytes();
+    debugPrint('--> Image Size: ${(imageBytes.length / 1024).toStringAsFixed(2)} KB');
+
     request.files.add(
-      await http.MultipartFile.fromPath(
-        'image',
-        imageFile.path,
-        // Let the server determine content type from file extension
+      http.MultipartFile.fromBytes(
+        'file', // must match the FastAPI parameter name
+        imageBytes,
+        filename: imageFile.name,
       ),
     );
 
-    // Attach the batch name as a form field
     request.fields['batch_name'] = batchName;
 
     // Required when going through ngrok — skips the browser warning interstitial page
     request.headers['ngrok-skip-browser-warning'] = 'true';
 
     debugPrint('--> Sending HTTP POST request...');
-    
+
     // ── 2. Send with timeout ───────────────────────────────────────────────
     final streamedResponse = await _httpClient
         .send(request)
@@ -83,19 +85,18 @@ class RealAiService implements AiService {
     }
 
     debugPrint('<-- Successfully received 200 OK. Parsing JSON data...');
+
     // ── 4. Parse JSON → AnalysisResult ────────────────────────────────────
     final Map<String, dynamic> json =
         jsonDecode(response.body) as Map<String, dynamic>;
 
-    final result = _parseAnalysisResult(
-      json: json,
-      imagePath: imageFile.path,
-    );
-    
+    final result = _parseAnalysisResult(json: json, imagePath: imageFile.path);
+
     debugPrint('=== [RealAiService] Analysis Complete ===');
     debugPrint('--> Integrity Score: ${result.integrityScore}%');
-    debugPrint('--> Healthy: ${result.counts.healthy}, Broken: ${result.counts.broken}, Discolored: ${result.counts.discolored}');
-    
+    debugPrint(
+        '--> Healthy: ${result.counts.healthy}, 3/4 Broken: ${result.counts.threeQuarterBroken}, Half Broken: ${result.counts.halfBroken}, Impurity: ${result.counts.impurity}, Discolored: ${result.counts.discolored}');
+
     return result;
   }
 
@@ -111,6 +112,10 @@ class RealAiService implements AiService {
 
     final processingMs = (json['processingTimeMs'] as num?)?.toInt() ?? 0;
 
+    // Decode annotated images from base64 so the UI can show them directly
+    final morphB64 = json['morphology_image_b64'] as String?;
+    final colorB64 = json['color_image_b64'] as String?;
+
     return AnalysisResult(
       id: json['id']?.toString() ??
           DateTime.now().millisecondsSinceEpoch.toString(),
@@ -121,22 +126,21 @@ class RealAiService implements AiService {
           : DateTime.now(),
       counts: GrainCounts(
         healthy: (counts['healthy'] as num?)?.toInt() ?? 0,
-        broken: (counts['broken'] as num?)?.toInt() ?? 0,
+        threeQuarterBroken:
+            (counts['threeQuarterBroken'] as num?)?.toInt() ?? 0,
+        halfBroken: (counts['halfBroken'] as num?)?.toInt() ?? 0,
+        impurity: (counts['impurity'] as num?)?.toInt() ?? 0,
         discolored: (counts['discolored'] as num?)?.toInt() ?? 0,
       ),
-      detectedVariety:
-          json['detectedVariety']?.toString() ?? 'Unknown',
+      detectedVariety: json['detectedVariety']?.toString() ?? 'Unknown',
       varietyConfidence:
           (json['varietyConfidence'] as num?)?.toDouble() ?? 0.0,
       integrityScore:
           (json['integrityScore'] as num?)?.toDouble() ?? 0.0,
       lengthDistribution: GrainLengthDistribution(
-        shortPct:
-            (lengthDist['shortPct'] as num?)?.toDouble() ?? 0.0,
-        mediumPct:
-            (lengthDist['mediumPct'] as num?)?.toDouble() ?? 0.0,
-        longPct:
-            (lengthDist['longPct'] as num?)?.toDouble() ?? 0.0,
+        shortPct: (lengthDist['shortPct'] as num?)?.toDouble() ?? 0.0,
+        mediumPct: (lengthDist['mediumPct'] as num?)?.toDouble() ?? 0.0,
+        longPct: (lengthDist['longPct'] as num?)?.toDouble() ?? 0.0,
       ),
       defectBreakdown: DefectBreakdown(
         chalkyPct:
@@ -149,6 +153,10 @@ class RealAiService implements AiService {
             (defectBreakdown['foreignMatterPct'] as num?)?.toDouble() ?? 0.0,
       ),
       processingTime: Duration(milliseconds: processingMs),
+      morphologyImageBytes:
+          morphB64 != null ? base64Decode(morphB64) : null,
+      colorImageBytes:
+          colorB64 != null ? base64Decode(colorB64) : null,
     );
   }
 }

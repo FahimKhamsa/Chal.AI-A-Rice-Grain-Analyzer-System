@@ -1,59 +1,74 @@
 // features/analysis/presentation/screens/analysis_result_screen.dart
-// Screen B — Hero Analysis Result Screen.
-// UX decisions:
-//   • Image fills top ~50% with color-coded bounding box overlay
-//   • Interactive filter chips toggle each grain class layer
-//   • DraggableScrollableSheet shows the Summary Card on first drag
-//   • Integrity Score in extra-large bold text is the immediate focal point
-import 'dart:io';
-import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/image_download.dart';
 import '../../domain/models/analysis_result.dart';
-import '../providers/analysis_provider.dart';
-import '../widgets/grain_bounding_box_overlay.dart';
+import '../widgets/full_screen_image_viewer.dart';
 import '../widgets/integrity_score_gauge.dart';
 import '../widgets/stat_chip.dart';
 
-class AnalysisResultScreen extends ConsumerWidget {
+class AnalysisResultScreen extends StatelessWidget {
   final AnalysisResult result;
   const AnalysisResultScreen({super.key, required this.result});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final layers = ref.watch(layerVisibilityProvider);
+  Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A1F14),
       body: Stack(
         children: [
-          // ── Full-screen image with overlay ──────────────────────────────
+          // ── Full-screen annotated image ────────────────────────────────
           SizedBox(
             height: size.height * 0.58,
             width: size.width,
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // Image
-                result.imagePath.isNotEmpty && File(result.imagePath).existsSync()
-                    ? Image.file(
-                        File(result.imagePath),
-                        fit: BoxFit.cover,
+                // Real annotated image from backend, plain dark bg as fallback
+                result.morphologyImageBytes != null
+                    ? GestureDetector(
+                        onTap: () => FullScreenImageViewer.show(
+                          context,
+                          imageBytes: result.morphologyImageBytes!,
+                          downloadFilename:
+                              'chal_ai_${result.batchName.replaceAll(' ', '_')}.jpg',
+                        ),
+                        child: Image.memory(
+                          result.morphologyImageBytes!,
+                          fit: BoxFit.cover,
+                        ),
                       )
-                    : _MockGrainImage(counts: result.counts),
+                    : Container(
+                        color: const Color(0xFF0D1F15),
+                        child: const Center(
+                          child: Icon(Icons.grain_rounded,
+                              color: Colors.white12, size: 64),
+                        ),
+                      ),
 
-                // Bounding box overlay
-                GrainBoundingBoxOverlay(
-                  counts: result.counts,
-                  showHealthy: layers.showHealthy,
-                  showBroken: layers.showBroken,
-                  showDiscolored: layers.showDiscolored,
-                ),
+                // Expand + download buttons (only when image is available)
+                if (result.morphologyImageBytes != null)
+                  Positioned(
+                    bottom: 16,
+                    right: 16,
+                    child: _ImageActionButtons(
+                      bytes: result.morphologyImageBytes!,
+                      filename:
+                          'chal_ai_${result.batchName.replaceAll(' ', '_')}.jpg',
+                      onExpand: () => FullScreenImageViewer.show(
+                        context,
+                        imageBytes: result.morphologyImageBytes!,
+                        downloadFilename:
+                            'chal_ai_${result.batchName.replaceAll(' ', '_')}.jpg',
+                      ),
+                    ),
+                  ),
 
                 // Top gradient for readability
                 Positioned(
@@ -98,7 +113,7 @@ class AnalysisResultScreen extends ConsumerWidget {
             ),
           ),
 
-          // ── App Bar ─────────────────────────────────────────────────────
+          // ── App Bar ──────────────────────────────────────────────────
           SafeArea(
             child: Padding(
               padding:
@@ -109,25 +124,15 @@ class AnalysisResultScreen extends ConsumerWidget {
                   const Spacer(),
                   _BatchBadge(name: result.batchName),
                   const SizedBox(width: 12),
-                  _ShareButton(onTap: () =>
-                      context.push(AppRoutes.report, extra: result)),
+                  _ShareButton(
+                      onTap: () =>
+                          context.push(AppRoutes.report, extra: result)),
                 ],
               ),
             ),
           ),
 
-          // ── Filter Chips (layer toggles) ─────────────────────────────────
-          Positioned(
-            top: size.height * 0.48,
-            left: 0,
-            right: 0,
-            child: _LayerFilterChips(
-              layers: layers,
-              notifier: ref.read(layerVisibilityProvider.notifier),
-            ),
-          ),
-
-          // ── Summary Bottom Sheet ─────────────────────────────────────────
+          // ── Summary Bottom Sheet ─────────────────────────────────────
           DraggableScrollableSheet(
             initialChildSize: 0.48,
             minChildSize: 0.42,
@@ -216,87 +221,6 @@ class _ShareButton extends StatelessWidget {
         ),
         child: const Icon(Icons.bar_chart_rounded,
             color: Colors.white, size: 20),
-      ),
-    );
-  }
-}
-
-class _LayerFilterChips extends StatelessWidget {
-  final LayerVisibilityState layers;
-  final LayerVisibilityNotifier notifier;
-  const _LayerFilterChips(
-      {required this.layers, required this.notifier});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _FilterChip(
-            label: '🟢 Healthy',
-            selected: layers.showHealthy,
-            color: AppTheme.healthyGreen,
-            onTap: notifier.toggleHealthy,
-          ),
-          const SizedBox(width: 8),
-          _FilterChip(
-            label: '🔴 Broken',
-            selected: layers.showBroken,
-            color: AppTheme.brokenRed,
-            onTap: notifier.toggleBroken,
-          ),
-          const SizedBox(width: 8),
-          _FilterChip(
-            label: '🟡 Discolored',
-            selected: layers.showDiscolored,
-            color: AppTheme.discoloredAmber,
-            onTap: notifier.toggleDiscolored,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final Color color;
-  final VoidCallback onTap;
-  const _FilterChip(
-      {required this.label,
-      required this.selected,
-      required this.color,
-      required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected
-              ? color.withAlpha(220)
-              : Colors.white.withAlpha(20),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? color : Colors.white30,
-            width: 1.5,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? Colors.white : Colors.white60,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
       ),
     );
   }
@@ -428,11 +352,35 @@ class _SummarySheet extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: StatChip(
-                  label: 'Broken',
-                  value: result.counts.broken.toString(),
-                  pct: result.counts.brokenPct,
-                  color: AppTheme.brokenRed,
+                  label: '¾ Broken',
+                  value: result.counts.threeQuarterBroken.toString(),
+                  pct: result.counts.threeQuarterBrokenPct,
+                  color: const Color(0xFFFFD600),
                   icon: Icons.broken_image_rounded,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: StatChip(
+                  label: 'Half Broken',
+                  value: result.counts.halfBroken.toString(),
+                  pct: result.counts.halfBrokenPct,
+                  color: AppTheme.brokenRed,
+                  icon: Icons.broken_image_outlined,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: StatChip(
+                  label: 'Impurity',
+                  value: result.counts.impurity.toString(),
+                  pct: result.counts.impurityPct,
+                  color: const Color(0xFFDD44FF),
+                  icon: Icons.warning_amber_rounded,
                 ),
               ),
               const SizedBox(width: 10),
@@ -441,8 +389,8 @@ class _SummarySheet extends StatelessWidget {
                   label: 'Discolored',
                   value: result.counts.discolored.toString(),
                   pct: result.counts.discoloredPct,
-                  color: AppTheme.discoloredAmber,
-                  icon: Icons.circle_rounded,
+                  color: const Color(0xFF4488FF),
+                  icon: Icons.palette_rounded,
                 ),
               ),
             ],
@@ -588,6 +536,113 @@ class _VarietyCard extends StatelessWidget {
   }
 }
 
+// ── Image overlay: expand + download buttons ──────────────────────────────────
+
+class _ImageActionButtons extends StatefulWidget {
+  final Uint8List bytes;
+  final String filename;
+  final VoidCallback onExpand;
+  const _ImageActionButtons({
+    required this.bytes,
+    required this.filename,
+    required this.onExpand,
+  });
+
+  @override
+  State<_ImageActionButtons> createState() => _ImageActionButtonsState();
+}
+
+class _ImageActionButtonsState extends State<_ImageActionButtons> {
+  bool _downloading = false;
+
+  Future<void> _download() async {
+    setState(() => _downloading = true);
+    try {
+      await downloadImage(widget.bytes, widget.filename);
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Expand
+        _PillBtn(
+          icon: Icons.fullscreen_rounded,
+          label: 'View',
+          onTap: widget.onExpand,
+        ),
+        const SizedBox(width: 8),
+        // Download
+        _PillBtn(
+          icon: _downloading ? null : Icons.download_rounded,
+          label: _downloading ? 'Saving…' : 'Download',
+          onTap: _downloading ? null : _download,
+          loading: _downloading,
+          accent: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _PillBtn extends StatelessWidget {
+  final IconData? icon;
+  final String label;
+  final VoidCallback? onTap;
+  final bool loading;
+  final bool accent;
+  const _PillBtn({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.loading = false,
+    this.accent = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: accent
+              ? AppTheme.healthyGreen.withAlpha(220)
+              : Colors.black.withAlpha(150),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (loading)
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+            else if (icon != null)
+              Icon(icon, color: Colors.white, size: 14),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _InfoTile extends StatelessWidget {
   final String label, value;
   final IconData icon;
@@ -626,79 +681,4 @@ class _InfoTile extends StatelessWidget {
       ),
     );
   }
-}
-
-// ── Mock Grain Image (when no real photo) ──────────────────────────────────
-class _MockGrainImage extends StatelessWidget {
-  final GrainCounts counts;
-  const _MockGrainImage({required this.counts});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [const Color(0xFF1A2E23), const Color(0xFF0D1F15)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: CustomPaint(
-        painter: _MockGrainPainter(counts: counts),
-      ),
-    );
-  }
-}
-
-class _MockGrainPainter extends CustomPainter {
-  final GrainCounts counts;
-  _MockGrainPainter({required this.counts});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rng = math.Random(42);
-    final grains = <({Offset pos, String type, double angle})>[];
-
-    // Generate grain positions deterministically
-    void addGrains(int n, String type) {
-      for (var i = 0; i < n && grains.length < 200; i++) {
-        grains.add((
-          pos: Offset(rng.nextDouble() * size.width,
-              rng.nextDouble() * size.height),
-          type: type,
-          angle: rng.nextDouble() * math.pi,
-        ));
-      }
-    }
-
-    final scale = (counts.total > 0) ? math.min(200 / counts.total, 1.0) : 1.0;
-    addGrains((counts.healthy * scale).round(), 'healthy');
-    addGrains((counts.broken * scale).round(), 'broken');
-    addGrains((counts.discolored * scale).round(), 'discolored');
-
-    for (final g in grains) {
-      final color = g.type == 'healthy'
-          ? AppTheme.healthyGreen.withAlpha(200)
-          : g.type == 'broken'
-              ? AppTheme.brokenRed.withAlpha(180)
-              : AppTheme.discoloredAmber.withAlpha(180);
-      final paint = Paint()..color = color;
-      canvas.save();
-      canvas.translate(g.pos.dx, g.pos.dy);
-      canvas.rotate(g.angle);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-            Rect.fromCenter(
-                center: Offset.zero,
-                width: 24 + rng.nextDouble() * 8,
-                height: 8 + rng.nextDouble() * 3),
-            const Radius.circular(4)),
-        paint,
-      );
-      canvas.restore();
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
 }

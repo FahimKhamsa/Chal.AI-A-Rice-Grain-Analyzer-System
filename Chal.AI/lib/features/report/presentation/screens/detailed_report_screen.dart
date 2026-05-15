@@ -1,15 +1,16 @@
 // features/report/presentation/screens/detailed_report_screen.dart
 // Screen C — Detailed Report View.
-// UX decisions:
-//   • Uses fl_chart BarChart for grain length distribution
-//   • PieChart for defect breakdown (scientific, accessible colors)
-//   • Export/Share button is always visible in the bottom action bar
+// Shows real backend data only:
+//   Tab 1: Grain Breakdown — pie chart + category cards (5 categories)
+//   Tab 2: Images — morphology and color annotated images from backend
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:share_plus/share_plus.dart' show Share;
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../analysis/domain/models/analysis_result.dart';
+import '../../../analysis/presentation/widgets/full_screen_image_viewer.dart';
 
 class DetailedReportScreen extends StatefulWidget {
   final AnalysisResult result;
@@ -58,8 +59,8 @@ class _DetailedReportScreenState extends State<DetailedReportScreen>
               labelStyle: const TextStyle(
                   fontWeight: FontWeight.w700, fontSize: 13),
               tabs: const [
-                Tab(text: 'Length Distribution'),
-                Tab(text: 'Defect Analysis'),
+                Tab(text: 'Grain Breakdown'),
+                Tab(text: 'Images'),
               ],
             ),
           ),
@@ -69,8 +70,8 @@ class _DetailedReportScreenState extends State<DetailedReportScreen>
             child: TabBarView(
               controller: _tabCtrl,
               children: [
-                _LengthDistributionTab(result: r),
-                _DefectAnalysisTab(result: r),
+                _GrainBreakdownTab(result: r),
+                _AnnotatedImagesTab(result: r),
               ],
             ),
           ),
@@ -92,12 +93,9 @@ class _ReportHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            const Color(0xFF0F2318),
-            const Color(0xFF0A1F14),
-          ],
+          colors: [Color(0xFF0F2318), Color(0xFF0A1F14)],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -119,10 +117,8 @@ class _ReportHeader extends StatelessWidget {
                         color: Colors.white12,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white,
-                          size: 18),
+                      child: const Icon(Icons.arrow_back_ios_new_rounded,
+                          color: Colors.white, size: 18),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -145,7 +141,6 @@ class _ReportHeader extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Score badge
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 8),
@@ -167,8 +162,8 @@ class _ReportHeader extends StatelessWidget {
                         ),
                         const Text(
                           'Score',
-                          style: TextStyle(
-                              color: Colors.white38, fontSize: 10),
+                          style:
+                              TextStyle(color: Colors.white38, fontSize: 10),
                         ),
                       ],
                     ),
@@ -176,7 +171,6 @@ class _ReportHeader extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              // Quick summary row
               Row(
                 children: [
                   _SummaryPill(
@@ -191,8 +185,8 @@ class _ReportHeader extends StatelessWidget {
                   const SizedBox(width: 8),
                   _SummaryPill(
                       label:
-                          '${result.varietyConfidence.toStringAsFixed(0)}% Conf.',
-                      icon: Icons.verified_rounded,
+                          '${(result.processingTime.inMilliseconds / 1000).toStringAsFixed(1)}s',
+                      icon: Icons.timer_rounded,
                       color: AppTheme.discoloredAmber),
                 ],
               ),
@@ -236,213 +230,58 @@ class _SummaryPill extends StatelessWidget {
   }
 }
 
-// ── Tab 1: Grain Length Distribution ─────────────────────────────────────
+// ── Tab 1: Grain Breakdown ────────────────────────────────────────────────
 
-class _LengthDistributionTab extends StatelessWidget {
+class _GrainBreakdownTab extends StatefulWidget {
   final AnalysisResult result;
-  const _LengthDistributionTab({required this.result});
+  const _GrainBreakdownTab({required this.result});
 
   @override
-  Widget build(BuildContext context) {
-    final dist = result.lengthDistribution;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _SectionTitle(
-            title: 'Grain Length Distribution',
-            subtitle: 'Percentage of grains by length category',
-          ),
-          const SizedBox(height: 24),
-
-          // Bar chart
-          SizedBox(
-            height: 220,
-            child: BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                maxY: 100,
-                barGroups: [
-                  _bar(0, dist.shortPct, const Color(0xFF60A5FA), 'Short'),
-                  _bar(1, dist.mediumPct, AppTheme.healthyGreen, 'Medium'),
-                  _bar(2, dist.longPct, const Color(0xFF818CF8), 'Long'),
-                ],
-                titlesData: FlTitlesData(
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (v, _) {
-                        const labels = ['Short\n<5mm', 'Medium\n5–6.5mm', 'Long\n>6.5mm'];
-                        final idx = v.toInt();
-                        if (idx < 0 || idx > 2) return const SizedBox.shrink();
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            labels[idx],
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                color: Colors.white54,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 40,
-                      getTitlesWidget: (v, _) => Text(
-                        '${v.toInt()}%',
-                        style: const TextStyle(
-                            color: Colors.white38, fontSize: 11),
-                      ),
-                    ),
-                  ),
-                  topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
-                ),
-                gridData: FlGridData(
-                  show: true,
-                  getDrawingHorizontalLine: (v) => FlLine(
-                    color: Colors.white12,
-                    strokeWidth: 1,
-                  ),
-                  drawVerticalLine: false,
-                ),
-                borderData: FlBorderData(show: false),
-              ),
-              duration: const Duration(milliseconds: 600),
-            ),
-          ),
-
-          const SizedBox(height: 28),
-
-          // Legend cards
-          Row(
-            children: [
-              _LegendCard(
-                  label: 'Short (<5mm)',
-                  pct: dist.shortPct,
-                  color: const Color(0xFF60A5FA)),
-              const SizedBox(width: 10),
-              _LegendCard(
-                  label: 'Medium (5–6.5mm)',
-                  pct: dist.mediumPct,
-                  color: AppTheme.healthyGreen),
-              const SizedBox(width: 10),
-              _LegendCard(
-                  label: 'Long (>6.5mm)',
-                  pct: dist.longPct,
-                  color: const Color(0xFF818CF8)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  BarChartGroupData _bar(int x, double y, Color color, String label) {
-    return BarChartGroupData(
-      x: x,
-      barRods: [
-        BarChartRodData(
-          toY: y,
-          color: color,
-          width: 36,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-          backDrawRodData: BackgroundBarChartRodData(
-            show: true,
-            toY: 100,
-            color: color.withAlpha(30),
-          ),
-        ),
-      ],
-    );
-  }
+  State<_GrainBreakdownTab> createState() => _GrainBreakdownTabState();
 }
 
-class _LegendCard extends StatelessWidget {
-  final String label;
-  final double pct;
-  final Color color;
-  const _LegendCard(
-      {required this.label, required this.pct, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-        decoration: BoxDecoration(
-          color: color.withAlpha(20),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withAlpha(80), width: 1.5),
-        ),
-        child: Column(
-          children: [
-            Text('${pct.toStringAsFixed(1)}%',
-                style: TextStyle(
-                    color: color,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            Text(label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: Colors.white54, fontSize: 10, height: 1.3)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Tab 2: Defect Analysis ────────────────────────────────────────────────
-
-class _DefectAnalysisTab extends StatefulWidget {
-  final AnalysisResult result;
-  const _DefectAnalysisTab({required this.result});
-
-  @override
-  State<_DefectAnalysisTab> createState() => _DefectAnalysisTabState();
-}
-
-class _DefectAnalysisTabState extends State<_DefectAnalysisTab> {
+class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
   int _touchedIndex = -1;
 
+  static const _categories = [
+    (label: 'Healthy',     color: AppTheme.healthyGreen,     icon: Icons.check_circle_rounded),
+    (label: '¾ Broken',    color: Color(0xFFFFD600),          icon: Icons.broken_image_rounded),
+    (label: 'Half Broken', color: AppTheme.brokenRed,         icon: Icons.broken_image_outlined),
+    (label: 'Impurity',    color: Color(0xFFDD44FF),           icon: Icons.warning_amber_rounded),
+    (label: 'Discolored',  color: Color(0xFF4488FF),           icon: Icons.palette_rounded),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final d = widget.result.defectBreakdown;
-
-    final sections = [
-      _pieSection(0, 'Chalky', d.chalkyPct, const Color(0xFFF8BBD0)),
-      _pieSection(1, 'Red-Streaked', d.redStreakedPct, AppTheme.brokenRed),
-      _pieSection(2, 'Immature', d.immaturePct, AppTheme.discoloredAmber),
-      _pieSection(3, 'Foreign Matter', d.foreignMatterPct,
-          const Color(0xFF9C27B0)),
+    final counts = widget.result.counts;
+    final values = [
+      counts.healthy.toDouble(),
+      counts.threeQuarterBroken.toDouble(),
+      counts.halfBroken.toDouble(),
+      counts.impurity.toDouble(),
+      counts.discolored.toDouble(),
     ];
+    final total = counts.total;
 
-    final totalDefect =
-        d.chalkyPct + d.redStreakedPct + d.immaturePct + d.foreignMatterPct;
+    if (total == 0) {
+      return const Center(
+        child: Text('No grains detected',
+            style: TextStyle(color: Colors.white38, fontSize: 15)),
+      );
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(
-            title: 'Defect Breakdown',
-            subtitle: 'Percentage breakdown of grain defect types',
+          _SectionTitle(
+            title: 'Grain Breakdown',
+            subtitle: 'Distribution across $total detected grains',
           ),
           const SizedBox(height: 24),
 
-          // Pie Chart
+          // ── Pie chart ─────────────────────────────────────────────────
           SizedBox(
             height: 240,
             child: Row(
@@ -453,17 +292,37 @@ class _DefectAnalysisTabState extends State<_DefectAnalysisTab> {
                       pieTouchData: PieTouchData(
                         touchCallback: (ev, res) {
                           setState(() {
-                            _touchedIndex =
-                                res?.touchedSection?.touchedSectionIndex ??
-                                    -1;
+                            _touchedIndex = res
+                                    ?.touchedSection
+                                    ?.touchedSectionIndex ??
+                                -1;
                           });
                         },
                       ),
-                      sections: sections,
+                      sections: List.generate(_categories.length, (i) {
+                        final val = values[i];
+                        if (val <= 0) {
+                          return PieChartSectionData(
+                              value: 0, showTitle: false, radius: 0);
+                        }
+                        final isTouched = i == _touchedIndex;
+                        return PieChartSectionData(
+                          value: val,
+                          color: _categories[i].color,
+                          radius: isTouched ? 72 : 60,
+                          title:
+                              '${(val / total * 100).toStringAsFixed(1)}%',
+                          titleStyle: TextStyle(
+                            fontSize: isTouched ? 13 : 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        );
+                      }),
                       centerSpaceRadius: 48,
                       sectionsSpace: 3,
                     ),
-                  duration: const Duration(milliseconds: 500),
+                    duration: const Duration(milliseconds: 500),
                   ),
                 ),
                 const SizedBox(width: 20),
@@ -471,16 +330,31 @@ class _DefectAnalysisTabState extends State<_DefectAnalysisTab> {
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _pieLegend('Chalky', d.chalkyPct,
-                        const Color(0xFFF8BBD0)),
-                    _pieLegend('Red-Streaked', d.redStreakedPct,
-                        AppTheme.brokenRed),
-                    _pieLegend('Immature', d.immaturePct,
-                        AppTheme.discoloredAmber),
-                    _pieLegend('Foreign', d.foreignMatterPct,
-                        const Color(0xFF9C27B0)),
-                  ],
+                  children: List.generate(_categories.length, (i) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: _categories[i].color,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${_categories[i].label}\n${values[i].toInt()} grains',
+                            style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                                height: 1.3),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
                 ),
               ],
             ),
@@ -488,152 +362,32 @@ class _DefectAnalysisTabState extends State<_DefectAnalysisTab> {
 
           const SizedBox(height: 24),
 
-          // Total defect summary
-          _TotalDefectSummary(totalDefect: totalDefect),
-
-          const SizedBox(height: 24),
-
-          // Individual defect detail cards
-          _DefectDetailCard(
-            label: 'Chalky Grains',
-            pct: d.chalkyPct,
-            color: const Color(0xFFF8BBD0),
-            description:
-                'Caused by high temperatures or water stress during grain-fill stage.',
-            icon: Icons.circle_outlined,
-          ),
-          const SizedBox(height: 10),
-          _DefectDetailCard(
-            label: 'Red-Streaked Grains',
-            pct: d.redStreakedPct,
-            color: AppTheme.brokenRed,
-            description:
-                'Indicates bran pigmentation exposure during milling.',
-            icon: Icons.line_axis_rounded,
-          ),
-          const SizedBox(height: 10),
-          _DefectDetailCard(
-            label: 'Immature Grains',
-            pct: d.immaturePct,
-            color: AppTheme.discoloredAmber,
-            description:
-                'Harvested prematurely; higher moisture content expected.',
-            icon: Icons.eco_rounded,
-          ),
-          const SizedBox(height: 10),
-          _DefectDetailCard(
-            label: 'Foreign Matter',
-            pct: d.foreignMatterPct,
-            color: const Color(0xFF9C27B0),
-            description:
-                'Stones, husks, or other non-grain material detected.',
-            icon: Icons.warning_amber_rounded,
-          ),
-        ],
-      ),
-    );
-  }
-
-  PieChartSectionData _pieSection(
-      int idx, String title, double value, Color color) {
-    final isTouched = idx == _touchedIndex;
-    return PieChartSectionData(
-      value: value,
-      color: color,
-      radius: isTouched ? 72 : 60,
-      title: '${value.toStringAsFixed(1)}%',
-      titleStyle: TextStyle(
-        fontSize: isTouched ? 14 : 12,
-        fontWeight: FontWeight.w700,
-        color: Colors.white,
-      ),
-    );
-  }
-
-  Widget _pieLegend(String label, double pct, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        children: [
-          Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(3),
+          // ── Category cards ────────────────────────────────────────────
+          for (int i = 0; i < _categories.length; i++) ...[
+            _GrainCategoryCard(
+              label: _categories[i].label,
+              count: values[i].toInt(),
+              pct: total > 0 ? values[i] / total * 100 : 0.0,
+              color: _categories[i].color,
+              icon: _categories[i].icon,
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '$label\n${pct.toStringAsFixed(1)}%',
-            style: const TextStyle(
-                color: Colors.white70, fontSize: 11, height: 1.3),
-          ),
+            if (i < _categories.length - 1) const SizedBox(height: 10),
+          ],
         ],
       ),
     );
   }
 }
 
-class _TotalDefectSummary extends StatelessWidget {
-  final double totalDefect;
-  const _TotalDefectSummary({required this.totalDefect});
-
-  @override
-  Widget build(BuildContext context) {
-    final isLow = totalDefect <= 10;
-    final color = isLow ? AppTheme.healthyGreen : AppTheme.brokenRed;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withAlpha(20),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withAlpha(80), width: 1.5),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            isLow ? Icons.check_circle_rounded : Icons.warning_rounded,
-            color: color,
-            size: 28,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Total Defect Rate: ${totalDefect.toStringAsFixed(1)}%',
-                  style: TextStyle(
-                      color: color,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700),
-                ),
-                Text(
-                  isLow
-                      ? 'Within acceptable range (≤10% defects)'
-                      : 'Exceeds recommended defect threshold',
-                  style: const TextStyle(
-                      color: Colors.white54, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DefectDetailCard extends StatelessWidget {
-  final String label, description;
+class _GrainCategoryCard extends StatelessWidget {
+  final String label;
+  final int count;
   final double pct;
   final Color color;
   final IconData icon;
-
-  const _DefectDetailCard({
+  const _GrainCategoryCard({
     required this.label,
-    required this.description,
+    required this.count,
     required this.pct,
     required this.color,
     required this.icon,
@@ -644,8 +398,9 @@ class _DefectDetailCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withAlpha(8),
+        color: color.withAlpha(15),
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withAlpha(60), width: 1.5),
       ),
       child: Row(
         children: [
@@ -671,35 +426,167 @@ class _DefectDetailCard extends StatelessWidget {
                             fontSize: 14,
                             fontWeight: FontWeight.w600)),
                     const Spacer(),
-                    Text(
-                      '${pct.toStringAsFixed(1)}%',
-                      style: TextStyle(
-                          color: color,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700),
-                    ),
+                    Text('$count grains',
+                        style: TextStyle(
+                            color: color,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700)),
                   ],
                 ),
                 const SizedBox(height: 6),
-                // Progress bar
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
-                    value: pct / 15, // max 15% for visual scale
+                    value: pct / 100,
                     backgroundColor: Colors.white12,
                     valueColor: AlwaysStoppedAnimation(color),
                     minHeight: 4,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(description,
-                    style: const TextStyle(
-                        color: Colors.white38, fontSize: 11, height: 1.4)),
+                const SizedBox(height: 4),
+                Text('${pct.toStringAsFixed(1)}% of total',
+                    style: TextStyle(
+                        color: color.withAlpha(180), fontSize: 11)),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Tab 2: Annotated Images ───────────────────────────────────────────────
+
+class _AnnotatedImagesTab extends StatelessWidget {
+  final AnalysisResult result;
+  const _AnnotatedImagesTab({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasMorph = result.morphologyImageBytes != null;
+    final hasColor = result.colorImageBytes != null;
+
+    if (!hasMorph && !hasColor) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.image_not_supported_rounded,
+                color: Colors.white24, size: 48),
+            SizedBox(height: 12),
+            Text('No annotated images available',
+                style: TextStyle(color: Colors.white38, fontSize: 14)),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionTitle(
+            title: 'Annotated Images',
+            subtitle: 'AI-generated grain analysis overlays',
+          ),
+          const SizedBox(height: 20),
+
+          if (hasMorph) ...[
+            _ImageCard(
+              title: 'Morphology Analysis',
+              subtitle:
+                  'Bounding boxes colored by grain size & discoloration',
+              imageBytes: result.morphologyImageBytes!,
+              filename:
+                  'chal_ai_${result.batchName.replaceAll(' ', '_')}_morph.jpg',
+            ),
+          ],
+
+          if (hasMorph && hasColor) const SizedBox(height: 20),
+
+          if (hasColor) ...[
+            _ImageCard(
+              title: 'Color Analysis',
+              subtitle: 'HSV-based discoloration detection overlay',
+              imageBytes: result.colorImageBytes!,
+              filename:
+                  'chal_ai_${result.batchName.replaceAll(' ', '_')}_color.jpg',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ImageCard extends StatelessWidget {
+  final String title, subtitle, filename;
+  final Uint8List imageBytes;
+  const _ImageCard({
+    required this.title,
+    required this.subtitle,
+    required this.imageBytes,
+    required this.filename,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Text(subtitle,
+            style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        const SizedBox(height: 12),
+        GestureDetector(
+          onTap: () => FullScreenImageViewer.show(
+            context,
+            imageBytes: imageBytes,
+            downloadFilename: filename,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              children: [
+                Image.memory(imageBytes,
+                    width: double.infinity, fit: BoxFit.fitWidth),
+                Positioned(
+                  bottom: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.fullscreen_rounded,
+                            color: Colors.white, size: 14),
+                        SizedBox(width: 5),
+                        Text('Expand',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -722,8 +609,7 @@ class _SectionTitle extends StatelessWidget {
                 fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
         Text(subtitle,
-            style:
-                const TextStyle(color: Colors.white54, fontSize: 13)),
+            style: const TextStyle(color: Colors.white54, fontSize: 13)),
       ],
     );
   }
@@ -751,8 +637,7 @@ class _ExportBar extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppTheme.healthyGreen,
                 side: BorderSide(
-                    color: AppTheme.healthyGreen.withAlpha(120),
-                    width: 1.5),
+                    color: AppTheme.healthyGreen.withAlpha(120), width: 1.5),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
@@ -763,7 +648,7 @@ class _ExportBar extends StatelessWidget {
           Expanded(
             flex: 2,
             child: FilledButton.icon(
-              onPressed: _exportMockPdf,
+              onPressed: _shareText,
               icon: const Icon(Icons.picture_as_pdf_rounded),
               label: const Text('Export PDF'),
               style: FilledButton.styleFrom(
@@ -787,23 +672,18 @@ Batch: ${r.batchName}
 Date: ${r.analyzedAt.day}/${r.analyzedAt.month}/${r.analyzedAt.year}
 
 Integrity Score: ${r.integrityScore.toStringAsFixed(1)}%
-Variety: ${r.detectedVariety} (${r.varietyConfidence.toStringAsFixed(1)}% confidence)
+Total Grains: ${r.counts.total}
 
-Grains:
+Grain Breakdown:
   • Healthy: ${r.counts.healthy} (${r.counts.healthyPct.toStringAsFixed(1)}%)
-  • 3/4 Broken: ${r.counts.threeQuarterBroken} (${r.counts.threeQuarterBrokenPct.toStringAsFixed(1)}%)
+  • ¾ Broken: ${r.counts.threeQuarterBroken} (${r.counts.threeQuarterBrokenPct.toStringAsFixed(1)}%)
   • Half Broken: ${r.counts.halfBroken} (${r.counts.halfBrokenPct.toStringAsFixed(1)}%)
   • Impurity: ${r.counts.impurity} (${r.counts.impurityPct.toStringAsFixed(1)}%)
   • Discolored: ${r.counts.discolored} (${r.counts.discoloredPct.toStringAsFixed(1)}%)
 
+Processing Time: ${(r.processingTime.inMilliseconds / 1000).toStringAsFixed(2)}s
 Generated by Chal.AI 🌾
 ''';
     Share.share(text);
-  }
-
-  void _exportMockPdf() {
-    // Real PDF export would use printing or pdf packages.
-    // This mock triggers the share sheet with a summary.
-    _shareText();
   }
 }

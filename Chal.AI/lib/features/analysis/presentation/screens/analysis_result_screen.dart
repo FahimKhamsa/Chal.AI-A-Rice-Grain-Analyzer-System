@@ -11,9 +11,41 @@ import '../widgets/full_screen_image_viewer.dart';
 import '../widgets/integrity_score_gauge.dart';
 import '../widgets/stat_chip.dart';
 
-class AnalysisResultScreen extends StatelessWidget {
+class AnalysisResultScreen extends StatefulWidget {
   final AnalysisResult result;
   const AnalysisResultScreen({super.key, required this.result});
+
+  @override
+  State<AnalysisResultScreen> createState() => _AnalysisResultScreenState();
+}
+
+class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
+  final _sheetCtrl = DraggableScrollableController();
+  double _imageOpacity = 1.0;
+
+  AnalysisResult get result => widget.result;
+
+  @override
+  void initState() {
+    super.initState();
+    _sheetCtrl.addListener(_onSheetChanged);
+  }
+
+  void _onSheetChanged() {
+    if (!_sheetCtrl.isAttached) return;
+    final size = _sheetCtrl.size;
+    // Fade out as sheet grows from 0.55 to 0.75
+    final opacity = 1.0 - ((size - 0.55) / 0.20).clamp(0.0, 1.0);
+    if (mounted && (opacity - _imageOpacity).abs() > 0.005) {
+      setState(() => _imageOpacity = opacity);
+    }
+  }
+
+  @override
+  void dispose() {
+    _sheetCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,8 +55,11 @@ class AnalysisResultScreen extends StatelessWidget {
       backgroundColor: const Color(0xFF0A1F14),
       body: Stack(
         children: [
-          // ── Full-screen annotated image ────────────────────────────────
-          SizedBox(
+          // ── Full-screen annotated image (fades as sheet expands) ─────
+          AnimatedOpacity(
+            opacity: _imageOpacity,
+            duration: const Duration(milliseconds: 80),
+            child: SizedBox(
             height: size.height * 0.58,
             width: size.width,
             child: Stack(
@@ -111,6 +146,7 @@ class AnalysisResultScreen extends StatelessWidget {
                 ),
               ],
             ),
+            ),
           ),
 
           // ── App Bar ──────────────────────────────────────────────────
@@ -134,6 +170,7 @@ class AnalysisResultScreen extends StatelessWidget {
 
           // ── Summary Bottom Sheet ─────────────────────────────────────
           DraggableScrollableSheet(
+            controller: _sheetCtrl,
             initialChildSize: 0.48,
             minChildSize: 0.42,
             maxChildSize: 0.92,

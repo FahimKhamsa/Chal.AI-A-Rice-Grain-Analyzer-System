@@ -9,9 +9,11 @@ import '../../features/capture/presentation/screens/capture_screen.dart';
 import '../../features/analysis/presentation/screens/analysis_result_screen.dart';
 import '../../features/report/presentation/screens/detailed_report_screen.dart';
 import '../../features/analysis/domain/models/analysis_result.dart';
+import '../../features/splash/splash_screen.dart';
 
 // Route name constants — use these instead of raw strings to prevent typos
 class AppRoutes {
+  static const String splash = '/splash';
   static const String capture = '/';
   static const String analysisResult = '/analysis';
   static const String report = '/report';
@@ -19,9 +21,17 @@ class AppRoutes {
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: AppRoutes.capture,
+    initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
     routes: [
+      GoRoute(
+        path: AppRoutes.splash,
+        name: 'splash',
+        pageBuilder: (context, state) => _buildPage(
+          key: state.pageKey,
+          child: const SplashScreen(),
+        ),
+      ),
       GoRoute(
         path: AppRoutes.capture,
         name: 'capture',

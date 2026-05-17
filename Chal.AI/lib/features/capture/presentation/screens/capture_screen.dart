@@ -164,15 +164,13 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           // App logo
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppTheme.healthyGreen,
-              borderRadius: BorderRadius.circular(10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.asset(
+              'assets/icons/app_icon.png',
+              width: 36,
+              height: 36,
             ),
-            child: const Icon(Icons.grain_rounded,
-                color: Colors.white, size: 19),
           ),
           const SizedBox(width: 10),
           const Text.rich(

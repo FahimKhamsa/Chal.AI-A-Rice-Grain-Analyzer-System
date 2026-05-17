@@ -1,11 +1,23 @@
+# ── Web server (used for local FastAPI dev only; not needed in RunPod container) ──
 fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
 python-multipart>=0.0.6
+
+# ── Data validation ────────────────────────────────────────────────────────────
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
-torch>=2.0.0
-transformers>=4.30.0
+
+# ── ML / CV ────────────────────────────────────────────────────────────────────
+# torch, torchvision, accelerate are provided by the pytorch base image with CUDA.
+# Do NOT list them here — pip would pull CPU-only wheels from PyPI and overwrite
+# the CUDA build, causing torch.cuda.is_available() to return False.
+transformers==4.44.2
 opencv-python-headless>=4.8.0
-numpy>=1.24.0
-torchvision>=0.15.0
-accelerate>=0.20.0
+numpy>=1.24.0,<2.0.0
+
+# ── RunPod serverless worker ───────────────────────────────────────────────────
+runpod>=1.6.0
+
+# ── Supabase Storage integration ──────────────────────────────────────────────
+supabase>=2.0.0
+requests>=2.28.0

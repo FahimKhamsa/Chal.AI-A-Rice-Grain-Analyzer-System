@@ -46,3 +46,6 @@ app.*.map.json
 
 # python notebooks
 /notebooks
+
+# Environment secrets — never commit
+.env.json

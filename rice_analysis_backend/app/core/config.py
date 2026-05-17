@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     COLOR_S_WEIGHT: float = 0.5
     COLOR_ANOMALY_THRESHOLD: float = 15.0
 
+    # ── Supabase ───────────────────────────────────────────────────────────────
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
+    SUPABASE_RESULTS_BUCKET: str = "analysis-results"
+
 
 # Single module-level instance — import this everywhere
 settings = Settings()

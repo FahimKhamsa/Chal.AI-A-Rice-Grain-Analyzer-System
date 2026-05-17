@@ -1,0 +1,6 @@
+{
+  "input": {
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/White_rice.jpg/640px-White_rice.jpg",
+    "confidence_threshold": 0.06
+  }
+}

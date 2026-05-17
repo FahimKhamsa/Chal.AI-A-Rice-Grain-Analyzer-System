@@ -3,6 +3,10 @@ app/api/v1/endpoints/analyze.py
 --------------------------------
 POST /api/v1/rice — Rice grain quality analysis endpoint.
 
+Also exports process_rice_analysis() — a pure Python function that accepts a
+Supabase image URL and runs the full pipeline without any FastAPI dependency.
+Used by run_serverless.py (RunPod) and local_test.py.
+
 Design notes:
   • Uses a regular `def` (not `async def`) so PyTorch's blocking GPU ops run
     inside FastAPI's threadpool executor and never block the event loop.
@@ -198,3 +202,4 @@ def analyze_rice_image(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     finally:
         file.file.close()
+

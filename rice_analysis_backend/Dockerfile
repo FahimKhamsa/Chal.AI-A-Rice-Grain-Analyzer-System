@@ -1,39 +1,47 @@
 # ──────────────────────────────────────────────────────────────────────────────
-# Rice Analysis Backend — Dockerfile
-# Multi-stage build for a lean production image.
+# Rice Analysis Backend — Dockerfile (RunPod Serverless)
 #
-# Build:  docker build -t rice-analysis-api .
-# Run:    docker run --gpus all -p 8000:8000 rice-analysis-api
+# Production build: RunPod GPU container running the serverless worker.
+# Local dev:        docker run --gpus all rice-analyzer-serverless python local_test.py
+#
+# Build:  docker build -t <hub>/rice-analyzer-serverless:latest .
+# Push:   docker push <hub>/rice-analyzer-serverless:latest
 # ──────────────────────────────────────────────────────────────────────────────
 
-# ── Stage 1: base image with CUDA support ─────────────────────────────────────
-# Use the official PyTorch CUDA image so GPU drivers are pre-configured.
-# For CPU-only deployments replace with: python:3.11-slim
-FROM pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime AS base
+FROM pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime AS base
 
 WORKDIR /app
+ENV PYTHONUNBUFFERED=1
 
-# System dependencies for OpenCV headless
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# libglib2.0-0 is the only system dep needed by opencv-python-headless.
+# libsm6/libxrender1/libxext6 are X11 display libs — not required for headless.
+RUN apt-get update --fix-missing && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
-    libsm6 \
-    libxrender1 \
-    libxext6 \
- && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
-# ── Stage 2: install Python dependencies ─────────────────────────────────────
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ── Stage 3: copy application code ───────────────────────────────────────────
+# Copy application source tree (includes model weights at app/models/)
 COPY app/ ./app/
 
-# Expose API port
-EXPOSE 8000
+# Refresh processor configs using the container's transformers version.
+# Uses sub-processor classes directly to avoid the composite GroundingDinoProcessor
+# from_pretrained regression in transformers >= 4.45 (multiple values for image_processor).
+RUN python -c "\
+from transformers import AutoImageProcessor, AutoTokenizer, SamImageProcessor; \
+AutoImageProcessor.from_pretrained('IDEA-Research/grounding-dino-base') \
+    .save_pretrained('/app/app/models/dino'); \
+AutoTokenizer.from_pretrained('IDEA-Research/grounding-dino-base') \
+    .save_pretrained('/app/app/models/dino'); \
+SamImageProcessor.from_pretrained('facebook/sam-vit-base') \
+    .save_pretrained('/app/app/models/sam'); \
+print('Processor configs refreshed OK')"
 
-# Health check — Docker will restart if the API stops responding
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-    CMD curl -f http://localhost:8000/ || exit 1
+# Copy the RunPod entrypoint
+COPY run_serverless.py .
 
-# ── Entry point ───────────────────────────────────────────────────────────────
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# RunPod Serverless worker — starts the queue handler daemon directly.
+# No HTTP port needed; RunPod manages the request queue.
+CMD ["python", "-u", "run_serverless.py"]

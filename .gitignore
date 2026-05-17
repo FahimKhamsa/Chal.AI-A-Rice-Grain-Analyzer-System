@@ -1,0 +1,11 @@
+# Claude Code session data — contains memory, plans, conversation history
+.claude/
+
+# Environment secrets
+.env
+.env.*
+*.env
+
+# OS noise
+.DS_Store
+Thumbs.db

@@ -1,0 +1,30 @@
+# Virtual environment — reinstalled inside the image via requirements.txt
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Local environment — never bake secrets into the image
+.env
+
+# Dev/test files — not needed in the production container
+local_test.py
+tests/
+
+# Model cache / local dev scripts — not needed in the production container
+model_cache/
+download_weights.py
+
+# Editor and OS noise
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore

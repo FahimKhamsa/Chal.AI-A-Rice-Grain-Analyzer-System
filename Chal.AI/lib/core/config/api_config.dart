@@ -17,20 +17,31 @@
 class ApiConfig {
   ApiConfig._(); // prevent instantiation
 
+  // ── Local FastAPI backend (development only) ───────────────────────────────
   /// Base URL of the FastAPI backend — NO trailing slash.
-  static const String baseUrl = 'http://localhost:8000';
-  //  ↑ Works via USB debugging because `adb reverse tcp:8000 tcp:8000`
-  //    tunnels your PC's port 8000 directly to the phone over USB.
-  //    Re-run `adb reverse tcp:8000 tcp:8000` if you unplug/replug the cable.
-  //    Replace with your LAN IP when running on a physical device.
-  //    Example for physical device on same WiFi: 'http://192.168.1.105:8000'
+  static const String baseUrl = String.fromEnvironment('LOCAL_API_BASE_URL',
+      defaultValue: 'http://localhost:8000');
 
-  /// Analyze endpoint
   static const String analyzeEndpoint = '$baseUrl/api/v1/rice';
-
-  /// Health check endpoint
   static const String healthEndpoint = '$baseUrl/health';
-
-  /// Request timeout — the pipeline can take a few seconds on CPU
   static const Duration requestTimeout = Duration(seconds: 60);
+
+  // ── RunPod Serverless ──────────────────────────────────────────────────────
+  // Values are injected at build time from .env.json via --dart-define-from-file.
+  // Never hardcode secrets here — .env.json is gitignored.
+
+  static const String runpodEndpointId =
+      String.fromEnvironment('RUNPOD_ENDPOINT_ID');
+
+  static const String runpodApiKey = String.fromEnvironment('RUNPOD_API_KEY');
+
+  // ── Supabase Storage (input image uploads) ─────────────────────────────────
+  static const String supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+
+  static const String supabaseAnonKey =
+      String.fromEnvironment('SUPABASE_ANON_KEY');
+
+  static const String supabaseUploadBucket = String.fromEnvironment(
+      'SUPABASE_UPLOAD_BUCKET',
+      defaultValue: 'rice-uploads');
 }

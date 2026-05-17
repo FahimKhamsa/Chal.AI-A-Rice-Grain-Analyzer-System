@@ -10,11 +10,14 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../analysis/data/services/mock_ai_service.dart';
 import '../../../analysis/data/services/real_ai_service.dart';
+import '../../../analysis/data/services/runpod_ai_service.dart';
 import '../../../analysis/domain/models/analysis_result.dart';
 
-/// Set to `true` to use MockAiService (no backend needed).
-/// Set to `false` (default) to use the real FastAPI backend.
+/// --dart-define=USE_MOCK=true   → MockAiService  (no backend, instant demo)
+/// --dart-define=USE_RUNPOD=false → RealAiService (local FastAPI dev server)
+/// default                        → RunPodAiService (production)
 const bool _useMock = bool.fromEnvironment('USE_MOCK', defaultValue: false);
+const bool _useRunPod = bool.fromEnvironment('USE_RUNPOD', defaultValue: true);
 
 enum CaptureStatus { idle, analyzing, done, error }
 
@@ -133,11 +136,11 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
 
 // ── Providers ─────────────────────────────────────────────────────────────
 
-/// Provides the active AI service.
-/// Switch to MockAiService by running Flutter with --dart-define=USE_MOCK=true
-final aiServiceProvider = Provider<AiService>(
-  (ref) => _useMock ? MockAiService() : RealAiService(),
-);
+final aiServiceProvider = Provider<AiService>((ref) {
+  if (_useMock) return MockAiService();
+  if (!_useRunPod) return RealAiService();
+  return RunPodAiService();
+});
 
 final imagePickerProvider = Provider<ImagePicker>((ref) => ImagePicker());
 

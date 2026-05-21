@@ -10,8 +10,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_logo.dart';
+import '../../../../core/widgets/app_sidebar.dart';
 import '../../../analysis/domain/models/analysis_result.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/capture_provider.dart';
 import '../widgets/analyzing_overlay.dart';
 
@@ -85,6 +85,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B1410),
+      drawer: const AppSidebar(),
       body: Stack(
         children: [
           SafeArea(
@@ -96,10 +97,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // ── Header ──────────────────────────────────────────
-                    _Header(
-                      isFlashOn: state.isFlashOn,
-                      onFlashToggle: notifier.toggleFlash,
-                    ),
+                    const _Header(),
 
                     Expanded(
                       child: SingleChildScrollView(
@@ -164,52 +162,23 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
 // ─── Header ──────────────────────────────────────────────────────────────────
 
-class _Header extends ConsumerWidget {
-  final bool isFlashOn;
-  final VoidCallback onFlashToggle;
-  const _Header({required this.isFlashOn, required this.onFlashToggle});
+class _Header extends StatelessWidget {
+  const _Header();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+      padding: const EdgeInsets.fromLTRB(4, 16, 20, 8),
       child: Row(
         children: [
-          const AppLogo(size: 36, showText: true),
-          const Spacer(),
-          // Flash toggle
-          GestureDetector(
-            onTap: onFlashToggle,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: isFlashOn
-                    ? AppTheme.discoloredAmber.withAlpha(200)
-                    : Colors.white.withAlpha(14),
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: Icon(
-                isFlashOn
-                    ? Icons.flash_on_rounded
-                    : Icons.flash_off_rounded,
-                color: Colors.white,
-                size: 19,
-              ),
+          Builder(
+            builder: (ctx) => IconButton(
+              icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 24),
+              onPressed: () => Scaffold.of(ctx).openDrawer(),
             ),
           ),
-          const SizedBox(width: 4),
-          IconButton(
-            icon: const Icon(Icons.history_rounded, color: Colors.white70, size: 22),
-            tooltip: 'History',
-            onPressed: () => context.push(AppRoutes.history),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.white38, size: 20),
-            tooltip: 'Sign out',
-            onPressed: () => ref.read(authServiceProvider).signOut(),
-          ),
+          const AppLogo(size: 36, showText: true),
+          const Spacer(),
         ],
       ),
     );

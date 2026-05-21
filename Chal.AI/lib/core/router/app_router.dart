@@ -12,6 +12,8 @@ import '../../features/analysis/presentation/screens/analysis_result_screen.dart
 import '../../features/report/presentation/screens/detailed_report_screen.dart';
 import '../../features/analysis/domain/models/analysis_result.dart';
 import '../../features/history/presentation/screens/history_screen.dart';
+import '../../features/auth/presentation/screens/profile_screen.dart';
+import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/splash/splash_screen.dart';
 
 // Route path constants — use these instead of raw strings to prevent typos
@@ -25,6 +27,8 @@ class AppRoutes {
   static const String forgotPassword = '/forgot-password';
   static const String resetPassword = '/reset-password';
   static const String history = '/history';
+  static const String profile = '/profile';
+  static const String settings = '/settings';
 }
 
 // Bridges the Riverpod authStateProvider stream to GoRouter's ChangeNotifier-
@@ -136,6 +140,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _buildPage(
           key: state.pageKey,
           child: const HistoryScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.profile,
+        name: 'profile',
+        pageBuilder: (context, state) => _buildPage(
+          key: state.pageKey,
+          child: const ProfileScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.settings,
+        name: 'settings',
+        pageBuilder: (context, state) => _buildPage(
+          key: state.pageKey,
+          child: const SettingsScreen(),
         ),
       ),
     ],

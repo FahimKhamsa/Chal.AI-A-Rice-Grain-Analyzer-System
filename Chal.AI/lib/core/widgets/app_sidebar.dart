@@ -28,10 +28,11 @@ class AppSidebar extends ConsumerWidget {
     }
 
     void confirmSignOut() {
+      final authService = ref.read(authServiceProvider);
       close();
       showDialog<void>(
         context: context,
-        builder: (_) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           backgroundColor: const Color(0xFF131E17),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -53,17 +54,14 @@ class AppSidebar extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: Text(
                 'No',
                 style: GoogleFonts.inter(color: Colors.white54),
               ),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                ref.read(authServiceProvider).signOut();
-              },
+              onPressed: () => authService.signOut(),
               child: Text(
                 'Yes',
                 style: GoogleFonts.inter(

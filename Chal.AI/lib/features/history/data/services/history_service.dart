@@ -1,0 +1,61 @@
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../../core/config/api_config.dart';
+import '../../domain/models/analysis_record.dart';
+
+class HistoryService {
+  final SupabaseClient _client;
+
+  HistoryService(this._client);
+
+  Future<void> saveAnalysis({required Map<String, dynamic> data}) async {
+    await _client.from('rice_analysis_records').insert(data);
+  }
+
+  Future<List<AnalysisRecord>> fetchHistory(String userId) async {
+    final rows = await _client
+        .from('rice_analysis_records')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: false)
+        .limit(50);
+    return (rows as List)
+        .map((r) => AnalysisRecord.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> deleteRecord(String recordId) async {
+    await _client.from('rice_analysis_records').delete().eq('id', recordId);
+  }
+
+  Future<String?> uploadImage({
+    required String userId,
+    required String analysisId,
+    required Uint8List bytes,
+    required String filename,
+  }) async {
+    final path = '$userId/$analysisId/$filename';
+    try {
+      await _client.storage
+          .from(ApiConfig.supabaseUploadBucket)
+          .uploadBinary(path, bytes,
+              fileOptions: const FileOptions(upsert: true));
+      return path;
+    } catch (e) {
+      debugPrint('Image upload failed (non-fatal): $e');
+      return null;
+    }
+  }
+
+  Future<Uint8List?> downloadImage(String storagePath) async {
+    try {
+      return await _client.storage
+          .from(ApiConfig.supabaseUploadBucket)
+          .download(storagePath);
+    } catch (e) {
+      debugPrint('Image download failed: $e');
+      return null;
+    }
+  }
+}

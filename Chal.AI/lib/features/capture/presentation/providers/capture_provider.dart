@@ -4,7 +4,7 @@
 //
 // Uses XFile (image_picker) + Uint8List bytes throughout so the code works
 // on Flutter web and native without any dart:io File.
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -12,6 +12,10 @@ import '../../../analysis/data/services/mock_ai_service.dart';
 import '../../../analysis/data/services/real_ai_service.dart';
 import '../../../analysis/data/services/runpod_ai_service.dart';
 import '../../../analysis/domain/models/analysis_result.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../history/data/services/history_service.dart';
+import '../../../history/domain/models/analysis_record.dart';
+import '../../../history/presentation/providers/history_provider.dart';
 
 /// --dart-define=USE_MOCK=true   → MockAiService  (no backend, instant demo)
 /// --dart-define=USE_RUNPOD=false → RealAiService (local FastAPI dev server)
@@ -33,6 +37,7 @@ class CaptureState {
   final CaptureStatus status;
   final AnalysisResult? result;
   final String? errorMessage;
+  final String? historySaveError;
   final bool isFlashOn;
 
   const CaptureState({
@@ -42,6 +47,7 @@ class CaptureState {
     this.status = CaptureStatus.idle,
     this.result,
     this.errorMessage,
+    this.historySaveError,
     this.isFlashOn = false,
   });
 
@@ -54,6 +60,8 @@ class CaptureState {
     CaptureStatus? status,
     AnalysisResult? result,
     String? errorMessage,
+    String? historySaveError,
+    bool clearHistorySaveError = false,
     bool? isFlashOn,
   }) {
     return CaptureState(
@@ -63,6 +71,7 @@ class CaptureState {
       status: status ?? this.status,
       result: result ?? this.result,
       errorMessage: errorMessage ?? this.errorMessage,
+      historySaveError: clearHistorySaveError ? null : (historySaveError ?? this.historySaveError),
       isFlashOn: isFlashOn ?? this.isFlashOn,
     );
   }
@@ -71,8 +80,11 @@ class CaptureState {
 class CaptureNotifier extends StateNotifier<CaptureState> {
   final AiService _aiService;
   final ImagePicker _picker;
+  final HistoryService _historyService;
+  final String? _userId;
 
-  CaptureNotifier(this._aiService, this._picker) : super(const CaptureState());
+  CaptureNotifier(this._aiService, this._picker, this._historyService, this._userId)
+      : super(const CaptureState());
 
   void setBatchName(String name) {
     state = state.copyWith(batchName: name.isEmpty ? 'Batch A' : name);
@@ -108,6 +120,7 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
       imageBytes: bytes,
       selectedXFile: xfile,
       status: CaptureStatus.analyzing,
+      clearHistorySaveError: true,
     );
     return _runAnalysis(xfile);
   }
@@ -119,6 +132,36 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
         batchName: state.batchName,
       );
       state = state.copyWith(status: CaptureStatus.done, result: result);
+      final userId = _userId;
+      if (userId != null) {
+        try {
+          final morphPath = result.morphologyImageBytes != null
+              ? await _historyService.uploadImage(
+                  userId: userId,
+                  analysisId: result.id,
+                  bytes: result.morphologyImageBytes!,
+                  filename: 'morphology.jpg')
+              : null;
+          final colorPath = result.colorImageBytes != null
+              ? await _historyService.uploadImage(
+                  userId: userId,
+                  analysisId: result.id,
+                  bytes: result.colorImageBytes!,
+                  filename: 'color.jpg')
+              : null;
+          await _historyService.saveAnalysis(
+            data: AnalysisRecord.toDatabaseMap(
+              result,
+              userId,
+              morphologyImagePath: morphPath,
+              colorImagePath: colorPath,
+            ),
+          );
+        } catch (e) {
+          debugPrint('History save failed: $e');
+          state = state.copyWith(historySaveError: e.toString());
+        }
+      }
       return result;
     } catch (e) {
       state = state.copyWith(
@@ -149,5 +192,7 @@ final captureProvider =
   return CaptureNotifier(
     ref.watch(aiServiceProvider),
     ref.watch(imagePickerProvider),
+    ref.watch(historyServiceProvider),
+    ref.watch(currentUserProvider)?.id,
   );
 });

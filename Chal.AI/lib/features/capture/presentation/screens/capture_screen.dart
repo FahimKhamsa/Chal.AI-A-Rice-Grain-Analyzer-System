@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../analysis/domain/models/analysis_result.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/capture_provider.dart';
 import '../widgets/analyzing_overlay.dart';
 
@@ -55,7 +56,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final notifier = ref.read(captureProvider.notifier);
     final mq = MediaQuery.of(context);
 
-    ref.listen(captureProvider, (_, next) {
+    ref.listen(captureProvider, (prev, next) {
       if (next.status == CaptureStatus.done && next.result != null) {
         context.push(AppRoutes.analysisResult, extra: next.result);
         Future.delayed(const Duration(milliseconds: 600), notifier.reset);
@@ -68,6 +69,16 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
           ),
         );
         notifier.reset();
+      }
+      if (next.historySaveError != null && prev?.historySaveError == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not save record: ${next.historySaveError}'),
+            backgroundColor: AppTheme.brokenRed,
+            duration: const Duration(seconds: 6),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     });
 
@@ -152,15 +163,15 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
 // ─── Header ──────────────────────────────────────────────────────────────────
 
-class _Header extends StatelessWidget {
+class _Header extends ConsumerWidget {
   final bool isFlashOn;
   final VoidCallback onFlashToggle;
   const _Header({required this.isFlashOn, required this.onFlashToggle});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
       child: Row(
         children: [
           // App logo
@@ -217,6 +228,17 @@ class _Header extends StatelessWidget {
                 size: 19,
               ),
             ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.history_rounded, color: Colors.white70, size: 22),
+            tooltip: 'History',
+            onPressed: () => context.push(AppRoutes.history),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: Colors.white38, size: 20),
+            tooltip: 'Sign out',
+            onPressed: () => ref.read(authServiceProvider).signOut(),
           ),
         ],
       ),

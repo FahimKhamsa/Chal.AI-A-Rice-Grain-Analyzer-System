@@ -10,7 +10,8 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
@@ -30,7 +31,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please enter your email address.', style: GoogleFonts.inter()),
+          content: Text('Please enter your email address.',
+              style: GoogleFonts.inter()),
           backgroundColor: AppTheme.brokenRed,
           behavior: SnackBarBehavior.floating,
         ),
@@ -40,12 +42,17 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     setState(() => _loading = true);
     try {
       await ref.read(authServiceProvider).sendPasswordResetEmail(email);
-      if (mounted) setState(() { _sent = true; _sentEmail = email; });
+      if (mounted)
+        setState(() {
+          _sent = true;
+          _sentEmail = email;
+        });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not send reset email. Please try again.', style: GoogleFonts.inter()),
+            content: Text('Could not send reset email. Please try again.',
+                style: GoogleFonts.inter()),
             backgroundColor: AppTheme.brokenRed,
             behavior: SnackBarBehavior.floating,
           ),
@@ -68,11 +75,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: _sent ? _SuccessView(email: _sentEmail!) : _FormView(
-            emailCtrl: _emailCtrl,
-            loading: _loading,
-            onSend: _handleSend,
-          ),
+          child: _sent
+              ? _SuccessView(email: _sentEmail!)
+              : _FormView(
+                  emailCtrl: _emailCtrl,
+                  loading: _loading,
+                  onSend: _handleSend,
+                ),
         ),
       ),
     );
@@ -84,7 +93,8 @@ class _FormView extends StatelessWidget {
   final bool loading;
   final VoidCallback onSend;
 
-  const _FormView({required this.emailCtrl, required this.loading, required this.onSend});
+  const _FormView(
+      {required this.emailCtrl, required this.loading, required this.onSend});
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +102,7 @@ class _FormView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 16),
-        const Center(child: AppLogo()),
+        const Center(child: AppLogo(size: 50, showText: true)),
         const SizedBox(height: 24),
         Text(
           'Reset your password',
@@ -107,11 +117,15 @@ class _FormView extends StatelessWidget {
         Text(
           "Enter your email and we'll send you a link to reset your password.",
           textAlign: TextAlign.center,
-          style: GoogleFonts.inter(color: Colors.white54, fontSize: 14, height: 1.5),
+          style: GoogleFonts.inter(
+              color: Colors.white54, fontSize: 14, height: 1.5),
         ),
         const SizedBox(height: 36),
-
-        Text('Email', style: GoogleFonts.inter(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.w500)),
+        Text('Email',
+            style: GoogleFonts.inter(
+                color: Colors.white60,
+                fontSize: 13,
+                fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
         TextFormField(
           controller: emailCtrl,
@@ -124,7 +138,8 @@ class _FormView extends StatelessWidget {
             hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 15),
             filled: true,
             fillColor: const Color(0xFF131E17),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Colors.white12),
@@ -135,12 +150,12 @@ class _FormView extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.healthyGreen, width: 1.5),
+              borderSide:
+                  const BorderSide(color: AppTheme.healthyGreen, width: 1.5),
             ),
           ),
         ),
         const SizedBox(height: 24),
-
         SizedBox(
           height: 52,
           child: ElevatedButton(
@@ -148,13 +163,21 @@ class _FormView extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.healthyGreen,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: AppTheme.healthyGreen.withValues(alpha: 0.4),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              disabledBackgroundColor:
+                  AppTheme.healthyGreen.withValues(alpha: 0.4),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
               elevation: 0,
             ),
             child: loading
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : Text('Send reset link', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700)),
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
+                : Text('Send reset link',
+                    style: GoogleFonts.inter(
+                        fontSize: 15, fontWeight: FontWeight.w700)),
           ),
         ),
       ],
@@ -179,21 +202,25 @@ class _SuccessView extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: AppTheme.healthyGreen.withValues(alpha: 0.12),
-            border: Border.all(color: AppTheme.healthyGreen.withValues(alpha: 0.4)),
+            border:
+                Border.all(color: AppTheme.healthyGreen.withValues(alpha: 0.4)),
           ),
-          child: const Icon(Icons.mark_email_read_outlined, color: AppTheme.healthyGreen, size: 32),
+          child: const Icon(Icons.mark_email_read_outlined,
+              color: AppTheme.healthyGreen, size: 32),
         ),
         const SizedBox(height: 28),
         Text(
           'Check your inbox',
           textAlign: TextAlign.center,
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
+          style: GoogleFonts.inter(
+              color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
         Text(
           "We've sent a password reset link to\n$email",
           textAlign: TextAlign.center,
-          style: GoogleFonts.inter(color: Colors.white54, fontSize: 14, height: 1.6),
+          style: GoogleFonts.inter(
+              color: Colors.white54, fontSize: 14, height: 1.6),
         ),
         const SizedBox(height: 36),
         SizedBox(
@@ -209,7 +236,9 @@ class _SuccessView extends StatelessWidget {
               ),
               elevation: 0,
             ),
-            child: Text('Back to Login', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600)),
+            child: Text('Back to Login',
+                style: GoogleFonts.inter(
+                    fontSize: 15, fontWeight: FontWeight.w600)),
           ),
         ),
       ],

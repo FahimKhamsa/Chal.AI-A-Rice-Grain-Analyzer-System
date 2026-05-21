@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_logo.dart';
 import '../../../analysis/domain/models/analysis_result.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/capture_provider.dart';
@@ -174,38 +175,7 @@ class _Header extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
       child: Row(
         children: [
-          // App logo
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.asset(
-              'assets/icons/app_icon.png',
-              width: 36,
-              height: 36,
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Text.rich(
-            TextSpan(children: [
-              TextSpan(
-                text: 'Chal',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              TextSpan(
-                text: '.AI',
-                style: TextStyle(
-                  color: AppTheme.healthyGreen,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ]),
-          ),
+          const AppLogo(size: 36, showText: true),
           const Spacer(),
           // Flash toggle
           GestureDetector(

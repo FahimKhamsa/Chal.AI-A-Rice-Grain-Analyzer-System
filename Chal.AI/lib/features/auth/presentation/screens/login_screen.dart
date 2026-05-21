@@ -36,9 +36,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() => _error = 'Please enter your email and password.');
       return;
     }
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
-      await ref.read(authServiceProvider).signIn(email: email, password: password);
+      await ref
+          .read(authServiceProvider)
+          .signIn(email: email, password: password);
       if (mounted) context.go(AppRoutes.capture);
     } catch (e) {
       if (mounted) setState(() => _error = _friendlyError(e.toString()));
@@ -48,8 +53,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   String _friendlyError(String raw) {
-    if (raw.contains('Invalid login credentials')) return 'Invalid email or password.';
-    if (raw.contains('network')) return 'Network error. Please check your connection.';
+    if (raw.contains('Invalid login credentials'))
+      return 'Invalid email or password.';
+    if (raw.contains('network'))
+      return 'Network error. Please check your connection.';
     return 'Something went wrong. Please try again.';
   }
 
@@ -64,7 +71,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 24),
-              const Center(child: AppLogo()),
+              const Center(child: AppLogo(size: 50, showText: true)),
               const SizedBox(height: 16),
               Center(
                 child: Text(
@@ -77,7 +84,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 40),
-
               _DarkTextField(
                 controller: _emailCtrl,
                 label: 'Email',
@@ -86,7 +92,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 14),
-
               _DarkTextField(
                 controller: _passCtrl,
                 label: 'Password',
@@ -96,31 +101,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 onSubmitted: (_) => _handleEmailLogin(),
                 suffixIcon: IconButton(
                   icon: Icon(
-                    _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                    _obscurePassword
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
                     color: Colors.white38,
                     size: 20,
                   ),
-                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
               const SizedBox(height: 20),
-
               if (_error != null) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
                     color: AppTheme.brokenRed.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppTheme.brokenRed.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: AppTheme.brokenRed.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     _error!,
-                    style: GoogleFonts.inter(color: AppTheme.brokenRed, fontSize: 13),
+                    style: GoogleFonts.inter(
+                        color: AppTheme.brokenRed, fontSize: 13),
                   ),
                 ),
                 const SizedBox(height: 16),
               ],
-
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
@@ -128,33 +137,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.healthyGreen,
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: AppTheme.healthyGreen.withValues(alpha: 0.4),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    disabledBackgroundColor:
+                        AppTheme.healthyGreen.withValues(alpha: 0.4),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                     elevation: 0,
                   ),
                   child: _loading
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Text('Sign In', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700)),
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : Text('Sign In',
+                          style: GoogleFonts.inter(
+                              fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
               ),
               const SizedBox(height: 32),
-
               Center(
                 child: TextButton(
                   onPressed: () => context.push(AppRoutes.forgotPassword),
                   child: Text(
                     'Forgot password?',
-                    style: GoogleFonts.inter(color: AppTheme.healthyGreen, fontSize: 13),
+                    style: GoogleFonts.inter(
+                        color: AppTheme.healthyGreen, fontSize: 13),
                   ),
                 ),
               ),
               const SizedBox(height: 8),
-
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text("Don't have an account? ", style: GoogleFonts.inter(color: Colors.white38, fontSize: 14)),
+                Text("Don't have an account? ",
+                    style:
+                        GoogleFonts.inter(color: Colors.white38, fontSize: 14)),
                 GestureDetector(
                   onTap: () => context.push(AppRoutes.signup),
-                  child: Text('Sign Up', style: GoogleFonts.inter(color: AppTheme.healthyGreen, fontSize: 14, fontWeight: FontWeight.w600)),
+                  child: Text('Sign Up',
+                      style: GoogleFonts.inter(
+                          color: AppTheme.healthyGreen,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600)),
                 ),
               ]),
             ],
@@ -191,7 +213,11 @@ class _DarkTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: GoogleFonts.inter(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.w500)),
+        Text(label,
+            style: GoogleFonts.inter(
+                color: Colors.white60,
+                fontSize: 13,
+                fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -206,7 +232,8 @@ class _DarkTextField extends StatelessWidget {
             filled: true,
             fillColor: const Color(0xFF131E17),
             suffixIcon: suffixIcon,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Colors.white12),
@@ -217,7 +244,8 @@ class _DarkTextField extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.healthyGreen, width: 1.5),
+              borderSide:
+                  const BorderSide(color: AppTheme.healthyGreen, width: 1.5),
             ),
           ),
         ),

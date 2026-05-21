@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/router/app_router.dart';
+import '../../core/widgets/app_logo.dart';
 import '../auth/presentation/providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -57,14 +58,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
-                  child: Image.asset(
-                    'assets/icons/app_icon.png',
-                    width: 120,
-                    height: 120,
-                  ),
-                ),
+                const AppLogo(size: 120),
                 const SizedBox(height: 20),
                 Text(
                   'Chal.AI',

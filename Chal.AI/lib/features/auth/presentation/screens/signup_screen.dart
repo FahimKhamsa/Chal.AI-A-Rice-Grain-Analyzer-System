@@ -50,10 +50,50 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       return;
     }
 
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
-      await ref.read(authServiceProvider).signUp(email: email, password: password);
-      if (mounted) context.go(AppRoutes.capture);
+      await ref
+          .read(authServiceProvider)
+          .signUp(email: email, password: password);
+      if (mounted) {
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => AlertDialog(
+            backgroundColor: const Color(0xFF131E17),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text(
+              'Check Your Email',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: Text(
+              'We sent a verification link to ${_emailCtrl.text.trim()}.\n\nPlease open your inbox and tap the link to activate your account before signing in.',
+              style: GoogleFonts.inter(
+                  color: Colors.white70, fontSize: 14, height: 1.5),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Got it',
+                  style: GoogleFonts.inter(
+                    color: AppTheme.healthyGreen,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+        if (mounted) context.go(AppRoutes.capture);
+      }
     } catch (e) {
       if (mounted) setState(() => _error = _friendlyError(e.toString()));
     } finally {
@@ -62,10 +102,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   String _friendlyError(String raw) {
-    if (raw.contains('already registered') || raw.contains('already been registered')) {
+    if (raw.contains('already registered') ||
+        raw.contains('already been registered')) {
       return 'This email is already registered. Try signing in instead.';
     }
-    if (raw.contains('network')) return 'Network error. Please check your connection.';
+    if (raw.contains('network'))
+      return 'Network error. Please check your connection.';
     return 'Something went wrong. Please try again.';
   }
 
@@ -80,7 +122,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 16),
-              const Center(child: AppLogo()),
+              const Center(child: AppLogo(size: 50, showText: true)),
               const SizedBox(height: 24),
               Text(
                 'Create Account',
@@ -99,7 +141,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 style: GoogleFonts.inter(color: Colors.white54, fontSize: 14),
               ),
               const SizedBox(height: 36),
-
               _DarkTextField(
                 controller: _emailCtrl,
                 label: 'Email',
@@ -108,7 +149,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 14),
-
               _DarkTextField(
                 controller: _passCtrl,
                 label: 'Password',
@@ -117,15 +157,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 textInputAction: TextInputAction.next,
                 suffixIcon: IconButton(
                   icon: Icon(
-                    _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                    _obscurePassword
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
                     color: Colors.white38,
                     size: 20,
                   ),
-                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
               const SizedBox(height: 14),
-
               _DarkTextField(
                 controller: _confirmPassCtrl,
                 label: 'Confirm Password',
@@ -135,31 +177,35 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 onSubmitted: (_) => _handleSignup(),
                 suffixIcon: IconButton(
                   icon: Icon(
-                    _obscureConfirm ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                    _obscureConfirm
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
                     color: Colors.white38,
                     size: 20,
                   ),
-                  onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                  onPressed: () =>
+                      setState(() => _obscureConfirm = !_obscureConfirm),
                 ),
               ),
               const SizedBox(height: 20),
-
               if (_error != null) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
                     color: AppTheme.brokenRed.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppTheme.brokenRed.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: AppTheme.brokenRed.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     _error!,
-                    style: GoogleFonts.inter(color: AppTheme.brokenRed, fontSize: 13),
+                    style: GoogleFonts.inter(
+                        color: AppTheme.brokenRed, fontSize: 13),
                   ),
                 ),
                 const SizedBox(height: 16),
               ],
-
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
@@ -167,22 +213,35 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.healthyGreen,
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: AppTheme.healthyGreen.withValues(alpha: 0.4),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    disabledBackgroundColor:
+                        AppTheme.healthyGreen.withValues(alpha: 0.4),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                     elevation: 0,
                   ),
                   child: _loading
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Text('Create Account', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700)),
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : Text('Create Account',
+                          style: GoogleFonts.inter(
+                              fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
               ),
               const SizedBox(height: 32),
-
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text('Already have an account? ', style: GoogleFonts.inter(color: Colors.white38, fontSize: 14)),
+                Text('Already have an account? ',
+                    style:
+                        GoogleFonts.inter(color: Colors.white38, fontSize: 14)),
                 GestureDetector(
                   onTap: () => context.pop(),
-                  child: Text('Sign In', style: GoogleFonts.inter(color: AppTheme.healthyGreen, fontSize: 14, fontWeight: FontWeight.w600)),
+                  child: Text('Sign In',
+                      style: GoogleFonts.inter(
+                          color: AppTheme.healthyGreen,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600)),
                 ),
               ]),
             ],
@@ -219,7 +278,11 @@ class _DarkTextField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: GoogleFonts.inter(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.w500)),
+        Text(label,
+            style: GoogleFonts.inter(
+                color: Colors.white60,
+                fontSize: 13,
+                fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -234,7 +297,8 @@ class _DarkTextField extends StatelessWidget {
             filled: true,
             fillColor: const Color(0xFF131E17),
             suffixIcon: suffixIcon,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Colors.white12),
@@ -245,7 +309,8 @@ class _DarkTextField extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.healthyGreen, width: 1.5),
+              borderSide:
+                  const BorderSide(color: AppTheme.healthyGreen, width: 1.5),
             ),
           ),
         ),

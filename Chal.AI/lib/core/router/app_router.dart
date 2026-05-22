@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../features/auth/presentation/providers/profile_provider.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/reset_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/signup_screen.dart';
+import '../../features/auth/presentation/screens/profile_setup_screen.dart';
 import '../../features/capture/presentation/screens/capture_screen.dart';
 import '../../features/analysis/presentation/screens/analysis_result_screen.dart';
 import '../../features/report/presentation/screens/detailed_report_screen.dart';
@@ -28,6 +30,7 @@ class AppRoutes {
   static const String resetPassword = '/reset-password';
   static const String history = '/history';
   static const String profile = '/profile';
+  static const String profileSetup = '/profile-setup';
   static const String settings = '/settings';
 }
 
@@ -39,28 +42,49 @@ class _AuthListenable extends ChangeNotifier {
   }
 }
 
+// Re-runs the redirect whenever the profile async state settles (null → loaded).
+class _ProfileListenable extends ChangeNotifier {
+  _ProfileListenable(Ref ref) {
+    ref.listen(profileNotifierProvider, (_, __) => notifyListeners());
+  }
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authListenable = _AuthListenable(ref);
+  final profileListenable = _ProfileListenable(ref);
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
-    refreshListenable: authListenable,
+    refreshListenable: Listenable.merge([authListenable, profileListenable]),
     redirect: (context, state) {
       final authState = ref.read(authStateProvider);
-      // Don't redirect while auth state is still loading
       if (authState.isLoading) return null;
 
       final isAuthenticated = authState.valueOrNull != null;
       final loc = state.matchedLocation;
 
-      // Splash manages its own navigation after the delay
       if (loc == AppRoutes.splash) return null;
 
-      final onAuthScreen = loc == AppRoutes.login || loc == AppRoutes.signup || loc == AppRoutes.forgotPassword;
+      final onAuthScreen = loc == AppRoutes.login ||
+          loc == AppRoutes.signup ||
+          loc == AppRoutes.forgotPassword;
+      final onProfileSetup = loc == AppRoutes.profileSetup;
 
-      if (!isAuthenticated && !onAuthScreen) return AppRoutes.login;
+      if (!isAuthenticated) {
+        return onAuthScreen ? null : AppRoutes.login;
+      }
+
+      // Authenticated — check whether the user has a profile record yet
+      final profileState = ref.read(profileNotifierProvider);
+      if (profileState.isLoading) return null;
+
+      final hasProfile = profileState.valueOrNull != null;
+
+      if (!hasProfile && !onProfileSetup) return AppRoutes.profileSetup;
+      if (hasProfile && (onAuthScreen || onProfileSetup)) return AppRoutes.capture;
       if (isAuthenticated && onAuthScreen) return AppRoutes.capture;
+
       return null;
     },
     routes: [
@@ -148,6 +172,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _buildPage(
           key: state.pageKey,
           child: const ProfileScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.profileSetup,
+        name: 'profileSetup',
+        pageBuilder: (context, state) => _buildPage(
+          key: state.pageKey,
+          child: const ProfileSetupScreen(),
         ),
       ),
       GoRoute(

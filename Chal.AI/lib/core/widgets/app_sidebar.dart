@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../features/auth/presentation/providers/profile_provider.dart';
 
 class AppSidebar extends ConsumerWidget {
   const AppSidebar({super.key});
@@ -14,7 +15,11 @@ class AppSidebar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final email = user?.email ?? '';
-    final initials = email.isNotEmpty ? email[0].toUpperCase() : 'U';
+    final profile = ref.watch(profileNotifierProvider).valueOrNull;
+    final displayName = profile != null ? profile.fullName : email;
+    final initials = profile != null
+        ? '${profile.firstName[0]}${profile.lastName[0]}'.toUpperCase()
+        : (email.isNotEmpty ? email[0].toUpperCase() : 'U');
 
     void close() => Navigator.pop(context);
 
@@ -113,7 +118,7 @@ class AppSidebar extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      email,
+                      displayName,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
                         color: Colors.white70,

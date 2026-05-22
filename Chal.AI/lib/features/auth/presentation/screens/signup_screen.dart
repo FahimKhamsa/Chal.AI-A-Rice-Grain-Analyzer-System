@@ -1,9 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../providers/auth_provider.dart';
@@ -23,9 +25,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   String? _error;
+  StreamSubscription? _confirmSub;
 
   @override
   void dispose() {
+    _confirmSub?.cancel();
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _confirmPassCtrl.dispose();
@@ -59,40 +63,57 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           .read(authServiceProvider)
           .signUp(email: email, password: password);
       if (mounted) {
-        await showDialog<void>(
+        _confirmSub?.cancel();
+        _confirmSub = Supabase.instance.client.auth.onAuthStateChange.listen(
+          (event) {
+            if (event.event == AuthChangeEvent.signedIn) {
+              _confirmSub?.cancel();
+              _confirmSub = null;
+              if (mounted) {
+                Navigator.of(context, rootNavigator: true).pop();
+              }
+            }
+          },
+        );
+
+        showDialog<void>(
           context: context,
           barrierDismissible: false,
-          builder: (_) => AlertDialog(
-            backgroundColor: const Color(0xFF131E17),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Text(
-              'Check Your Email',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            content: Text(
-              'We sent a verification link to ${_emailCtrl.text.trim()}.\n\nPlease open your inbox and tap the link to activate your account before signing in.',
-              style: GoogleFonts.inter(
-                  color: Colors.white70, fontSize: 14, height: 1.5),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'Got it',
-                  style: GoogleFonts.inter(
-                    color: AppTheme.healthyGreen,
-                    fontWeight: FontWeight.w600,
-                  ),
+          builder: (_) => PopScope(
+            canPop: false,
+            child: AlertDialog(
+              backgroundColor: const Color(0xFF131E17),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                'Check Your Email',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ],
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'We sent a verification link to ${_emailCtrl.text.trim()}.\n\nTap the link in your inbox to continue.',
+                    style: GoogleFonts.inter(
+                        color: Colors.white70, fontSize: 14, height: 1.5),
+                  ),
+                  const SizedBox(height: 24),
+                  const CircularProgressIndicator(
+                      color: AppTheme.healthyGreen, strokeWidth: 2.5),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Waiting for confirmation…',
+                    style: GoogleFonts.inter(
+                        color: Colors.white38, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
-        if (mounted) context.go(AppRoutes.capture);
       }
     } catch (e) {
       if (mounted) setState(() => _error = _friendlyError(e.toString()));

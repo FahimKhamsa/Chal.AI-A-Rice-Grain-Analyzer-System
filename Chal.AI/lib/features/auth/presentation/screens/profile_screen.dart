@@ -71,7 +71,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final location = _locationCtrl.text.trim();
     final designation = _designationCtrl.text.trim();
 
-    if (firstName.isEmpty || lastName.isEmpty || phone.isEmpty || location.isEmpty) {
+    if (firstName.isEmpty ||
+        lastName.isEmpty ||
+        phone.isEmpty ||
+        location.isEmpty) {
       setState(() => _error = s.fillRequiredFields);
       return;
     }
@@ -106,7 +109,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         );
       }
     } catch (e) {
-      if (mounted) setState(() => _error = ref.read(appStringsProvider).failedToSave);
+      if (mounted) {
+        setState(() => _error = ref.read(appStringsProvider).failedToSave);
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -116,17 +121,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(profileNotifierProvider);
     final s = ref.watch(appStringsProvider);
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return profileAsync.when(
       loading: () => const Scaffold(
-        backgroundColor: Color(0xFF0B1410),
         body: Center(child: CircularProgressIndicator()),
       ),
       error: (_, __) => Scaffold(
-        backgroundColor: const Color(0xFF0B1410),
         body: Center(
           child: Text(s.failedToLoadProfile,
-              style: GoogleFonts.inter(color: Colors.white54)),
+              style: GoogleFonts.inter(
+                  color: cs.onSurface.withValues(alpha: 0.54))),
         ),
       ),
       data: (profile) {
@@ -135,15 +141,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             '${profile.firstName[0]}${profile.lastName[0]}'.toUpperCase();
 
         return Scaffold(
-          backgroundColor: const Color(0xFF0B1410),
           appBar: AppBar(
-            backgroundColor: const Color(0xFF0B1410),
-            foregroundColor: Colors.white,
             elevation: 0,
             title: Text(
               s.profile,
               style: GoogleFonts.inter(
-                color: Colors.white,
                 fontWeight: FontWeight.w700,
                 fontSize: 18,
               ),
@@ -167,17 +169,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: Text(
                     s.cancel,
                     style: GoogleFonts.inter(
-                        color: Colors.white54, fontSize: 15),
+                        color: cs.onSurface.withValues(alpha: 0.54),
+                        fontSize: 15),
                   ),
                 ),
                 TextButton(
                   onPressed: _saving ? null : () => _saveChanges(profile),
                   child: _saving
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
+                              strokeWidth: 2, color: cs.primary))
                       : Text(
                           s.save,
                           style: GoogleFonts.inter(
@@ -192,8 +195,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           body: SafeArea(
             child: SingleChildScrollView(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -222,7 +224,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Text(
                     profile.fullName,
                     style: GoogleFonts.inter(
-                      color: Colors.white,
+                      color: cs.onSurface,
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                     ),
@@ -231,7 +233,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Text(
                     profile.email,
                     style: GoogleFonts.inter(
-                        color: Colors.white54, fontSize: 14),
+                        color: cs.onSurface.withValues(alpha: 0.54),
+                        fontSize: 14),
                   ),
                   const SizedBox(height: 40),
                   if (_error != null) ...[
@@ -243,8 +246,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         color: AppTheme.brokenRed.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                            color:
-                                AppTheme.brokenRed.withValues(alpha: 0.3)),
+                            color: AppTheme.brokenRed.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         _error!,
@@ -257,9 +259,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF131E17),
+                      color: isDark ? const Color(0xFF131E17) : Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white10),
+                      border: Border.all(color: cs.outlineVariant),
                     ),
                     child: Column(
                       children: [
@@ -269,26 +271,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             controller: _firstNameCtrl,
                             textInputAction: TextInputAction.next,
                           ),
-                          const Divider(color: Colors.white10, height: 1),
+                          Divider(color: cs.outlineVariant, height: 1),
                           _EditRow(
                             label: s.lastName,
                             controller: _lastNameCtrl,
                             textInputAction: TextInputAction.next,
                           ),
-                          const Divider(color: Colors.white10, height: 1),
+                          Divider(color: cs.outlineVariant, height: 1),
                           _EditRow(
                             label: s.phone,
                             controller: _phoneCtrl,
                             keyboardType: TextInputType.phone,
                             textInputAction: TextInputAction.next,
                           ),
-                          const Divider(color: Colors.white10, height: 1),
+                          Divider(color: cs.outlineVariant, height: 1),
                           _EditRow(
                             label: s.location,
                             controller: _locationCtrl,
                             textInputAction: TextInputAction.next,
                           ),
-                          const Divider(color: Colors.white10, height: 1),
+                          Divider(color: cs.outlineVariant, height: 1),
                           _EditRow(
                             label: s.designation,
                             controller: _designationCtrl,
@@ -296,17 +298,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             textInputAction: TextInputAction.done,
                           ),
                         ] else ...[
-                          _InfoRow(label: s.firstName, value: profile.firstName),
-                          const Divider(color: Colors.white10, height: 1),
+                          _InfoRow(
+                              label: s.firstName, value: profile.firstName),
+                          Divider(color: cs.outlineVariant, height: 1),
                           _InfoRow(label: s.lastName, value: profile.lastName),
-                          const Divider(color: Colors.white10, height: 1),
+                          Divider(color: cs.outlineVariant, height: 1),
                           _InfoRow(label: s.email, value: profile.email),
-                          const Divider(color: Colors.white10, height: 1),
+                          Divider(color: cs.outlineVariant, height: 1),
                           _InfoRow(label: s.phone, value: profile.phoneNumber),
-                          const Divider(color: Colors.white10, height: 1),
+                          Divider(color: cs.outlineVariant, height: 1),
                           _InfoRow(label: s.location, value: profile.location),
                           if (profile.designation != null) ...[
-                            const Divider(color: Colors.white10, height: 1),
+                            Divider(color: cs.outlineVariant, height: 1),
                             _InfoRow(
                                 label: s.designation,
                                 value: profile.designation!),
@@ -332,6 +335,7 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       child: Row(
@@ -339,7 +343,7 @@ class _InfoRow extends StatelessWidget {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: Colors.white38,
+              color: cs.onSurface.withValues(alpha: 0.38),
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -347,7 +351,8 @@ class _InfoRow extends StatelessWidget {
           const Spacer(),
           Text(
             value,
-            style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+            style: GoogleFonts.inter(
+                color: cs.onSurface.withValues(alpha: 0.7), fontSize: 13),
           ),
         ],
       ),
@@ -372,6 +377,7 @@ class _EditRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
       child: Row(
@@ -381,7 +387,7 @@ class _EditRow extends StatelessWidget {
             child: Text(
               label,
               style: GoogleFonts.inter(
-                color: Colors.white38,
+                color: cs.onSurface.withValues(alpha: 0.38),
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -392,23 +398,24 @@ class _EditRow extends StatelessWidget {
               controller: controller,
               keyboardType: keyboardType,
               textInputAction: textInputAction,
-              style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+              style: GoogleFonts.inter(
+                  color: cs.onSurface.withValues(alpha: 0.7), fontSize: 13),
               decoration: InputDecoration(
                 hintText: hint,
-                hintStyle:
-                    GoogleFonts.inter(color: Colors.white24, fontSize: 13),
+                hintStyle: GoogleFonts.inter(
+                    color: cs.onSurface.withValues(alpha: 0.24), fontSize: 13),
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 8),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 filled: true,
-                fillColor: Colors.white.withAlpha(8),
+                fillColor: cs.onSurface.withValues(alpha: 0.05),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Colors.white12),
+                  borderSide: BorderSide(color: cs.outlineVariant),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Colors.white12),
+                  borderSide: BorderSide(color: cs.outlineVariant),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),

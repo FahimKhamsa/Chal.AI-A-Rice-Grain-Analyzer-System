@@ -14,7 +14,8 @@ class DetailedReportScreen extends ConsumerStatefulWidget {
   const DetailedReportScreen({super.key, required this.result});
 
   @override
-  ConsumerState<DetailedReportScreen> createState() => _DetailedReportScreenState();
+  ConsumerState<DetailedReportScreen> createState() =>
+      _DetailedReportScreenState();
 }
 
 class _DetailedReportScreenState extends ConsumerState<DetailedReportScreen>
@@ -37,29 +38,31 @@ class _DetailedReportScreenState extends ConsumerState<DetailedReportScreen>
   Widget build(BuildContext context) {
     final r = widget.result;
     final s = ref.watch(appStringsProvider);
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1F14),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           _ReportHeader(result: r, s: s),
-
           Container(
-            color: const Color(0xFF0F2318),
+            color:
+                isDark ? const Color(0xFF0F2318) : cs.surfaceContainerHighest,
             child: TabBar(
               controller: _tabCtrl,
               indicatorColor: AppTheme.healthyGreen,
               indicatorWeight: 3,
               labelColor: AppTheme.healthyGreen,
-              unselectedLabelColor: Colors.white38,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              unselectedLabelColor: cs.onSurface.withValues(alpha: 0.38),
+              labelStyle:
+                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
               tabs: [
                 Tab(text: s.grainBreakdownTab),
                 Tab(text: s.imagesTab),
               ],
             ),
           ),
-
           Expanded(
             child: TabBarView(
               controller: _tabCtrl,
@@ -69,7 +72,6 @@ class _DetailedReportScreenState extends ConsumerState<DetailedReportScreen>
               ],
             ),
           ),
-
           _ExportBar(result: r, s: s),
         ],
       ),
@@ -86,10 +88,15 @@ class _ReportHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF0F2318), Color(0xFF0A1F14)],
+          colors: [
+            isDark ? const Color(0xFF0F2318) : cs.surfaceContainerHighest,
+            Theme.of(context).scaffoldBackgroundColor,
+          ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -108,11 +115,11 @@ class _ReportHeader extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.white12,
+                        color: cs.onSurface.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white, size: 18),
+                      child: Icon(Icons.arrow_back_ios_new_rounded,
+                          color: cs.onSurface, size: 18),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -122,22 +129,23 @@ class _ReportHeader extends StatelessWidget {
                       children: [
                         Text(
                           s.fullReport,
-                          style: const TextStyle(
-                              color: Colors.white,
+                          style: TextStyle(
+                              color: cs.onSurface,
                               fontSize: 20,
                               fontWeight: FontWeight.w700),
                         ),
                         Text(
                           '${result.batchName} · ${result.analyzedAt.day}/${result.analyzedAt.month}/${result.analyzedAt.year}',
-                          style: const TextStyle(
-                              color: Colors.white54, fontSize: 13),
+                          style: TextStyle(
+                              color: cs.onSurface.withValues(alpha: 0.54),
+                              fontSize: 13),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
                       color: AppTheme.healthyGreen.withAlpha(40),
                       borderRadius: BorderRadius.circular(12),
@@ -156,8 +164,9 @@ class _ReportHeader extends StatelessWidget {
                         ),
                         Text(
                           s.score,
-                          style: const TextStyle(
-                              color: Colors.white38, fontSize: 10),
+                          style: TextStyle(
+                              color: cs.onSurface.withValues(alpha: 0.38),
+                              fontSize: 10),
                         ),
                       ],
                     ),
@@ -215,9 +224,7 @@ class _SummaryPill extends StatelessWidget {
           const SizedBox(width: 5),
           Text(label,
               style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600)),
+                  color: color, fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -243,11 +250,31 @@ class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
     final s = widget.s;
     final counts = widget.result.counts;
     final categories = [
-      (label: s.healthy,           color: AppTheme.healthyGreen,  icon: Icons.check_circle_rounded),
-      (label: s.threeQuarterBroken, color: const Color(0xFFFFD600), icon: Icons.broken_image_rounded),
-      (label: s.halfBroken,        color: AppTheme.brokenRed,     icon: Icons.broken_image_outlined),
-      (label: s.impurity,          color: const Color(0xFFDD44FF), icon: Icons.warning_amber_rounded),
-      (label: s.discolored,        color: const Color(0xFF4488FF), icon: Icons.palette_rounded),
+      (
+        label: s.healthy,
+        color: AppTheme.healthyGreen,
+        icon: Icons.check_circle_rounded
+      ),
+      (
+        label: s.threeQuarterBroken,
+        color: const Color(0xFFFFD600),
+        icon: Icons.broken_image_rounded
+      ),
+      (
+        label: s.halfBroken,
+        color: AppTheme.brokenRed,
+        icon: Icons.broken_image_outlined
+      ),
+      (
+        label: s.impurity,
+        color: const Color(0xFFDD44FF),
+        icon: Icons.warning_amber_rounded
+      ),
+      (
+        label: s.discolored,
+        color: const Color(0xFF4488FF),
+        icon: Icons.palette_rounded
+      ),
     ];
     final values = [
       counts.healthy.toDouble(),
@@ -261,7 +288,12 @@ class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
     if (total == 0) {
       return Center(
         child: Text(s.noGrainsDetected,
-            style: const TextStyle(color: Colors.white38, fontSize: 15)),
+            style: TextStyle(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.38),
+                fontSize: 15)),
       );
     }
 
@@ -275,7 +307,6 @@ class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
             subtitle: '${s.distributionAcross} $total ${s.detectedGrains}',
           ),
           const SizedBox(height: 24),
-
           SizedBox(
             height: 240,
             child: Row(
@@ -286,10 +317,8 @@ class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
                       pieTouchData: PieTouchData(
                         touchCallback: (ev, res) {
                           setState(() {
-                            _touchedIndex = res
-                                    ?.touchedSection
-                                    ?.touchedSectionIndex ??
-                                -1;
+                            _touchedIndex =
+                                res?.touchedSection?.touchedSectionIndex ?? -1;
                           });
                         },
                       ),
@@ -304,8 +333,7 @@ class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
                           value: val,
                           color: categories[i].color,
                           radius: isTouched ? 72 : 60,
-                          title:
-                              '${(val / total * 100).toStringAsFixed(1)}%',
+                          title: '${(val / total * 100).toStringAsFixed(1)}%',
                           titleStyle: TextStyle(
                             fontSize: isTouched ? 13 : 11,
                             fontWeight: FontWeight.w700,
@@ -339,8 +367,11 @@ class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
                           const SizedBox(width: 8),
                           Text(
                             '${categories[i].label}\n${values[i].toInt()} ${s.grains}',
-                            style: const TextStyle(
-                                color: Colors.white70,
+                            style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.7),
                                 fontSize: 11,
                                 height: 1.3),
                           ),
@@ -352,9 +383,7 @@ class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
               ],
             ),
           ),
-
           const SizedBox(height: 24),
-
           for (int i = 0; i < categories.length; i++) ...[
             _GrainCategoryCard(
               label: categories[i].label,
@@ -419,8 +448,8 @@ class _GrainCategoryCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(label,
-                        style: const TextStyle(
-                            color: Colors.white,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontSize: 14,
                             fontWeight: FontWeight.w600)),
                     const Spacer(),
@@ -443,8 +472,8 @@ class _GrainCategoryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text('${pct.toStringAsFixed(1)}% $ofTotalLabel',
-                    style: TextStyle(
-                        color: color.withAlpha(180), fontSize: 11)),
+                    style:
+                        TextStyle(color: color.withAlpha(180), fontSize: 11)),
               ],
             ),
           ),
@@ -471,11 +500,20 @@ class _AnnotatedImagesTab extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.image_not_supported_rounded,
-                color: Colors.white24, size: 48),
+            Icon(Icons.image_not_supported_rounded,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.24),
+                size: 48),
             const SizedBox(height: 12),
             Text(s.noAnnotatedImages,
-                style: const TextStyle(color: Colors.white38, fontSize: 14)),
+                style: TextStyle(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.38),
+                    fontSize: 14)),
           ],
         ),
       );
@@ -491,25 +529,24 @@ class _AnnotatedImagesTab extends StatelessWidget {
             subtitle: s.aiGeneratedOverlays,
           ),
           const SizedBox(height: 20),
-
           if (hasMorph) ...[
             _ImageCard(
               title: s.morphologyAnalysis,
               subtitle: s.morphologySubtitle,
               imageBytes: result.morphologyImageBytes!,
-              filename: 'chal_ai_${result.batchName.replaceAll(' ', '_')}_morph.jpg',
+              filename:
+                  'chal_ai_${result.batchName.replaceAll(' ', '_')}_morph.jpg',
               expandLabel: s.expand,
             ),
           ],
-
           if (hasMorph && hasColor) const SizedBox(height: 20),
-
           if (hasColor) ...[
             _ImageCard(
               title: s.colorAnalysis,
               subtitle: s.colorSubtitle,
               imageBytes: result.colorImageBytes!,
-              filename: 'chal_ai_${result.batchName.replaceAll(' ', '_')}_color.jpg',
+              filename:
+                  'chal_ai_${result.batchName.replaceAll(' ', '_')}_color.jpg',
               expandLabel: s.expand,
             ),
           ],
@@ -536,13 +573,18 @@ class _ImageCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title,
-            style: const TextStyle(
-                color: Colors.white,
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 16,
                 fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         Text(subtitle,
-            style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            style: TextStyle(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.54),
+                fontSize: 12)),
         const SizedBox(height: 12),
         GestureDetector(
           onTap: () => FullScreenImageViewer.show(
@@ -560,8 +602,8 @@ class _ImageCard extends StatelessWidget {
                   bottom: 12,
                   right: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.black54,
                       borderRadius: BorderRadius.circular(20),
@@ -602,13 +644,18 @@ class _SectionTitle extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title,
-            style: const TextStyle(
-                color: Colors.white,
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 18,
                 fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
         Text(subtitle,
-            style: const TextStyle(color: Colors.white54, fontSize: 13)),
+            style: TextStyle(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.54),
+                fontSize: 13)),
       ],
     );
   }
@@ -623,8 +670,10 @@ class _ExportBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      color: const Color(0xFF0F2318),
+      color: isDark ? const Color(0xFF0F2318) : cs.surfaceContainerHighest,
       padding: EdgeInsets.fromLTRB(
           20, 16, 20, MediaQuery.of(context).padding.bottom + 16),
       child: Row(

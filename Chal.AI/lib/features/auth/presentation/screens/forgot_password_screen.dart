@@ -54,7 +54,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         final errS = ref.read(appStringsProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errS.couldNotSendResetEmail, style: GoogleFonts.inter()),
+            content:
+                Text(errS.couldNotSendResetEmail, style: GoogleFonts.inter()),
             backgroundColor: AppTheme.brokenRed,
             behavior: SnackBarBehavior.floating,
           ),
@@ -69,10 +70,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     final s = ref.watch(appStringsProvider);
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1410),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0B1410),
-        foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: SafeArea(
@@ -107,6 +105,8 @@ class _FormView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -117,7 +117,7 @@ class _FormView extends StatelessWidget {
           s.resetYourPassword,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
-            color: Colors.white,
+            color: cs.onSurface,
             fontSize: 22,
             fontWeight: FontWeight.w700,
           ),
@@ -127,12 +127,14 @@ class _FormView extends StatelessWidget {
           s.forgotPasswordSubtitle,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
-              color: Colors.white54, fontSize: 14, height: 1.5),
+              color: cs.onSurface.withValues(alpha: 0.54),
+              fontSize: 14,
+              height: 1.5),
         ),
         const SizedBox(height: 36),
         Text(s.email,
             style: GoogleFonts.inter(
-                color: Colors.white60,
+                color: cs.onSurface.withValues(alpha: 0.6),
                 fontSize: 13,
                 fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
@@ -141,21 +143,22 @@ class _FormView extends StatelessWidget {
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.done,
           onFieldSubmitted: (_) => onSend(),
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
+          style: GoogleFonts.inter(color: cs.onSurface, fontSize: 15),
           decoration: InputDecoration(
             hintText: s.emailPlaceholder,
-            hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 15),
+            hintStyle: GoogleFonts.inter(
+                color: cs.onSurface.withValues(alpha: 0.24), fontSize: 15),
             filled: true,
-            fillColor: const Color(0xFF131E17),
+            fillColor: isDark ? const Color(0xFF131E17) : Colors.white,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white12),
+              borderSide: BorderSide(color: cs.outlineVariant),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white12),
+              borderSide: BorderSide(color: cs.outlineVariant),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -201,6 +204,8 @@ class _SuccessView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -223,14 +228,16 @@ class _SuccessView extends StatelessWidget {
           s.checkYourInbox,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
-              color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
+              color: cs.onSurface, fontSize: 22, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
         Text(
           '${s.resetLinkSentTo}\n$email',
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
-              color: Colors.white54, fontSize: 14, height: 1.6),
+              color: cs.onSurface.withValues(alpha: 0.54),
+              fontSize: 14,
+              height: 1.6),
         ),
         const SizedBox(height: 36),
         SizedBox(
@@ -238,11 +245,12 @@ class _SuccessView extends StatelessWidget {
           child: ElevatedButton(
             onPressed: () => Navigator.of(context).pop(),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF131E17),
-              foregroundColor: Colors.white,
+              backgroundColor:
+                  isDark ? const Color(0xFF131E17) : cs.surfaceContainerHighest,
+              foregroundColor: cs.onSurface,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
-                side: const BorderSide(color: Colors.white12),
+                side: BorderSide(color: cs.outlineVariant),
               ),
               elevation: 0,
             ),

@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/config/api_config.dart';
 import 'core/providers/language_provider.dart';
+import 'core/providers/theme_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
@@ -44,6 +45,7 @@ class ChalAiApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
     final lang = ref.watch(languageProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     ref.listen(authEventStreamProvider, (_, next) {
       if (next.valueOrNull?.event == AuthChangeEvent.passwordRecovery) {
@@ -56,7 +58,7 @@ class ChalAiApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       routerConfig: router,
       locale: Locale(lang),
       localizationsDelegates: const [

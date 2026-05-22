@@ -44,7 +44,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     final location = _locationCtrl.text.trim();
     final designation = _designationCtrl.text.trim();
 
-    if (firstName.isEmpty || lastName.isEmpty || phone.isEmpty || location.isEmpty) {
+    if (firstName.isEmpty ||
+        lastName.isEmpty ||
+        phone.isEmpty ||
+        location.isEmpty) {
       setState(() => _error = s.fillRequiredFields);
       return;
     }
@@ -71,7 +74,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           );
     } catch (e) {
       if (mounted) {
-        setState(() => _error = ref.read(appStringsProvider).somethingWentWrong);
+        setState(
+            () => _error = ref.read(appStringsProvider).somethingWentWrong);
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -81,10 +85,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(appStringsProvider);
+    final cs = Theme.of(context).colorScheme;
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0B1410),
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -98,7 +102,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   s.completeYourProfile,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
-                    color: Colors.white,
+                    color: cs.onSurface,
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.3,
@@ -108,13 +112,15 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 Text(
                   s.tellUsAboutYourself,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(color: Colors.white54, fontSize: 14),
+                  style: GoogleFonts.inter(
+                      color: cs.onSurface.withValues(alpha: 0.54),
+                      fontSize: 14),
                 ),
                 const SizedBox(height: 36),
                 Row(
                   children: [
                     Expanded(
-                      child: _DarkTextField(
+                      child: _ThemedTextField(
                         controller: _firstNameCtrl,
                         label: s.firstName,
                         hint: s.firstNameHint,
@@ -123,7 +129,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _DarkTextField(
+                      child: _ThemedTextField(
                         controller: _lastNameCtrl,
                         label: s.lastName,
                         hint: s.lastNameHint,
@@ -133,7 +139,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                _DarkTextField(
+                _ThemedTextField(
                   controller: _phoneCtrl,
                   label: s.phoneNumber,
                   hint: s.phoneHint,
@@ -141,14 +147,14 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 14),
-                _DarkTextField(
+                _ThemedTextField(
                   controller: _locationCtrl,
                   label: s.location,
                   hint: s.locationHint,
                   textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 14),
-                _DarkTextField(
+                _ThemedTextField(
                   controller: _designationCtrl,
                   label: s.designation,
                   hint: s.designationHint,
@@ -209,7 +215,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   }
 }
 
-class _DarkTextField extends StatelessWidget {
+class _ThemedTextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final String hint;
@@ -217,7 +223,7 @@ class _DarkTextField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onSubmitted;
 
-  const _DarkTextField({
+  const _ThemedTextField({
     required this.controller,
     required this.label,
     required this.hint,
@@ -228,13 +234,15 @@ class _DarkTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: GoogleFonts.inter(
-              color: Colors.white60,
+              color: cs.onSurface.withValues(alpha: 0.6),
               fontSize: 13,
               fontWeight: FontWeight.w500),
         ),
@@ -244,21 +252,22 @@ class _DarkTextField extends StatelessWidget {
           keyboardType: keyboardType,
           textInputAction: textInputAction,
           onFieldSubmitted: onSubmitted,
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
+          style: GoogleFonts.inter(color: cs.onSurface, fontSize: 15),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 15),
+            hintStyle: GoogleFonts.inter(
+                color: cs.onSurface.withValues(alpha: 0.24), fontSize: 15),
             filled: true,
-            fillColor: const Color(0xFF131E17),
+            fillColor: isDark ? const Color(0xFF131E17) : Colors.white,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white12),
+              borderSide: BorderSide(color: cs.outlineVariant),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white12),
+              borderSide: BorderSide(color: cs.outlineVariant),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

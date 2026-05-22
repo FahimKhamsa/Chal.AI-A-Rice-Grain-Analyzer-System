@@ -50,6 +50,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(appStringsProvider);
+    // Splash always uses the vivid green brand color regardless of theme
     return Scaffold(
       backgroundColor: const Color(0xFF1CB383),
       body: Center(

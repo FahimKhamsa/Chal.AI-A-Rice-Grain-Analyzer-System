@@ -11,19 +11,21 @@ class IntegrityScoreGauge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return SizedBox(
       width: 80,
       height: 80,
       child: CustomPaint(
-        painter: _GaugePainter(score: score),
+        painter: _GaugePainter(
+            score: score, bgColor: cs.onSurface.withValues(alpha: 0.12)),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 '${score.round()}',
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: cs.onSurface,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                   height: 1,
@@ -46,7 +48,8 @@ class IntegrityScoreGauge extends StatelessWidget {
 
 class _GaugePainter extends CustomPainter {
   final double score;
-  _GaugePainter({required this.score});
+  final Color bgColor;
+  _GaugePainter({required this.score, required this.bgColor});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -55,7 +58,7 @@ class _GaugePainter extends CustomPainter {
 
     // Background arc
     final bgPaint = Paint()
-      ..color = Colors.white12
+      ..color = bgColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 6
       ..strokeCap = StrokeCap.round;

@@ -79,19 +79,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         );
 
         final currentS = ref.read(appStringsProvider);
+        final cs = Theme.of(context).colorScheme;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         showDialog<void>(
           context: context,
           barrierDismissible: false,
           builder: (_) => PopScope(
             canPop: false,
             child: AlertDialog(
-              backgroundColor: const Color(0xFF131E17),
+              backgroundColor: isDark ? const Color(0xFF131E17) : Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               title: Text(
                 currentS.checkYourEmail,
                 style: GoogleFonts.inter(
-                  color: Colors.white,
+                  color: cs.onSurface,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -101,7 +103,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   Text(
                     '${currentS.verificationLinkSent} ${_emailCtrl.text.trim()}.\n\n${currentS.tapLinkToContinue}',
                     style: GoogleFonts.inter(
-                        color: Colors.white70, fontSize: 14, height: 1.5),
+                        color: cs.onSurface.withValues(alpha: 0.7),
+                        fontSize: 14,
+                        height: 1.5),
                   ),
                   const SizedBox(height: 24),
                   const CircularProgressIndicator(
@@ -110,7 +114,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   Text(
                     currentS.waitingForConfirmation,
                     style: GoogleFonts.inter(
-                        color: Colors.white38, fontSize: 13),
+                        color: cs.onSurface.withValues(alpha: 0.38),
+                        fontSize: 13),
                   ),
                 ],
               ),
@@ -137,8 +142,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(appStringsProvider);
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1410),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -152,7 +157,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 s.createAccount,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
-                  color: Colors.white,
+                  color: cs.onSurface,
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.3,
@@ -162,10 +167,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               Text(
                 s.signupSubtitle,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: Colors.white54, fontSize: 14),
+                style: GoogleFonts.inter(
+                    color: cs.onSurface.withValues(alpha: 0.54), fontSize: 14),
               ),
               const SizedBox(height: 36),
-              _DarkTextField(
+              _ThemedTextField(
                 controller: _emailCtrl,
                 label: s.email,
                 hint: s.emailPlaceholder,
@@ -173,7 +179,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 14),
-              _DarkTextField(
+              _ThemedTextField(
                 controller: _passCtrl,
                 label: s.password,
                 hint: s.passwordPlaceholder,
@@ -184,7 +190,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     _obscurePassword
                         ? Icons.visibility_off_rounded
                         : Icons.visibility_rounded,
-                    color: Colors.white38,
+                    color: cs.onSurface.withValues(alpha: 0.38),
                     size: 20,
                   ),
                   onPressed: () =>
@@ -192,7 +198,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              _DarkTextField(
+              _ThemedTextField(
                 controller: _confirmPassCtrl,
                 label: s.confirmPassword,
                 hint: s.passwordPlaceholder,
@@ -204,7 +210,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     _obscureConfirm
                         ? Icons.visibility_off_rounded
                         : Icons.visibility_rounded,
-                    color: Colors.white38,
+                    color: cs.onSurface.withValues(alpha: 0.38),
                     size: 20,
                   ),
                   onPressed: () =>
@@ -257,8 +263,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               const SizedBox(height: 32),
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Text('${s.alreadyHaveAccount} ',
-                    style:
-                        GoogleFonts.inter(color: Colors.white38, fontSize: 14)),
+                    style: GoogleFonts.inter(
+                        color: cs.onSurface.withValues(alpha: 0.38),
+                        fontSize: 14)),
                 GestureDetector(
                   onTap: () => context.pop(),
                   child: Text(s.signIn,
@@ -276,7 +283,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 }
 
-class _DarkTextField extends StatelessWidget {
+class _ThemedTextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final String hint;
@@ -286,7 +293,7 @@ class _DarkTextField extends StatelessWidget {
   final ValueChanged<String>? onSubmitted;
   final Widget? suffixIcon;
 
-  const _DarkTextField({
+  const _ThemedTextField({
     required this.controller,
     required this.label,
     required this.hint,
@@ -299,12 +306,14 @@ class _DarkTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
             style: GoogleFonts.inter(
-                color: Colors.white60,
+                color: cs.onSurface.withValues(alpha: 0.6),
                 fontSize: 13,
                 fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
@@ -314,22 +323,23 @@ class _DarkTextField extends StatelessWidget {
           keyboardType: keyboardType,
           textInputAction: textInputAction,
           onFieldSubmitted: onSubmitted,
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
+          style: GoogleFonts.inter(color: cs.onSurface, fontSize: 15),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 15),
+            hintStyle: GoogleFonts.inter(
+                color: cs.onSurface.withValues(alpha: 0.24), fontSize: 15),
             filled: true,
-            fillColor: const Color(0xFF131E17),
+            fillColor: isDark ? const Color(0xFF131E17) : Colors.white,
             suffixIcon: suffixIcon,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white12),
+              borderSide: BorderSide(color: cs.outlineVariant),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white12),
+              borderSide: BorderSide(color: cs.outlineVariant),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

@@ -23,6 +23,9 @@ class AppSidebar extends ConsumerWidget {
         ? '${profile.firstName[0]}${profile.lastName[0]}'.toUpperCase()
         : (email.isNotEmpty ? email[0].toUpperCase() : 'U');
 
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     void close() => Navigator.pop(context);
 
     void navigate(String route, {bool replace = false}) {
@@ -40,21 +43,21 @@ class AppSidebar extends ConsumerWidget {
       showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          backgroundColor: const Color(0xFF131E17),
+          backgroundColor: isDark ? const Color(0xFF131E17) : cs.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           title: Text(
             s.signOutConfirmTitle,
             style: GoogleFonts.inter(
-              color: Colors.white,
+              color: cs.onSurface,
               fontWeight: FontWeight.w700,
             ),
           ),
           content: Text(
             s.signOutConfirmMessage,
             style: GoogleFonts.inter(
-              color: Colors.white70,
+              color: cs.onSurface.withValues(alpha: 0.7),
               fontSize: 14,
               height: 1.5,
             ),
@@ -64,7 +67,8 @@ class AppSidebar extends ConsumerWidget {
               onPressed: () => Navigator.pop(dialogContext),
               child: Text(
                 s.cancel,
-                style: GoogleFonts.inter(color: Colors.white54),
+                style: GoogleFonts.inter(
+                    color: cs.onSurface.withValues(alpha: 0.54)),
               ),
             ),
             TextButton(
@@ -85,7 +89,7 @@ class AppSidebar extends ConsumerWidget {
     final currentLocation = GoRouterState.of(context).matchedLocation;
 
     return Drawer(
-      backgroundColor: const Color(0xFF0D1F15),
+      backgroundColor: isDark ? const Color(0xFF0D1F15) : cs.surface,
       width: 260,
       child: SafeArea(
         child: Column(
@@ -123,7 +127,7 @@ class AppSidebar extends ConsumerWidget {
                       displayName,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
-                        color: Colors.white70,
+                        color: cs.onSurface.withValues(alpha: 0.7),
                         fontSize: 13,
                       ),
                     ),
@@ -132,7 +136,7 @@ class AppSidebar extends ConsumerWidget {
               ),
             ),
 
-            const Divider(color: Colors.white10, height: 1),
+            Divider(color: cs.outlineVariant, height: 1),
             const SizedBox(height: 8),
 
             _SidebarItem(
@@ -161,7 +165,7 @@ class AppSidebar extends ConsumerWidget {
             ),
 
             const Spacer(),
-            const Divider(color: Colors.white10, height: 1),
+            Divider(color: cs.outlineVariant, height: 1),
 
             _SidebarItem(
               icon: Icons.logout_rounded,
@@ -195,9 +199,10 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final itemColor = isActive
         ? AppTheme.healthyGreen
-        : (color ?? Colors.white70);
+        : (color ?? cs.onSurface.withValues(alpha: 0.7));
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
@@ -214,8 +219,8 @@ class _SidebarItem extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        splashColor: Colors.white10,
-        highlightColor: Colors.white.withAlpha(8),
+        splashColor: cs.onSurface.withValues(alpha: 0.06),
+        highlightColor: cs.onSurface.withValues(alpha: 0.04),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
           child: Row(

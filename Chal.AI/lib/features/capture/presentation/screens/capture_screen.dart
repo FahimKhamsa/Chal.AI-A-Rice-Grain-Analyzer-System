@@ -60,7 +60,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       if (next.status == CaptureStatus.done && next.result != null) {
         context.push(AppRoutes.analysisResult, extra: next.result);
         Future.delayed(const Duration(milliseconds: 600), notifier.reset);
-      } else if (next.status == CaptureStatus.error && next.errorMessage != null) {
+      } else if (next.status == CaptureStatus.error &&
+          next.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.errorMessage!),
@@ -83,7 +84,6 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     });
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1410),
       drawer: const AppSidebar(),
       body: Stack(
         children: [
@@ -153,9 +153,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
               ),
             ),
           ),
-
-          if (state.status == CaptureStatus.analyzing)
-            const AnalyzingOverlay(),
+          if (state.status == CaptureStatus.analyzing) const AnalyzingOverlay(),
         ],
       ),
     );
@@ -175,7 +173,8 @@ class _Header extends ConsumerWidget {
         children: [
           Builder(
             builder: (ctx) => IconButton(
-              icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 24),
+              icon: Icon(Icons.menu_rounded,
+                  color: Theme.of(ctx).colorScheme.onSurface, size: 24),
               onPressed: () => Scaffold.of(ctx).openDrawer(),
             ),
           ),
@@ -203,9 +202,12 @@ class _LangToggleButton extends ConsumerWidget {
       child: Container(
         height: 32,
         decoration: BoxDecoration(
-          color: const Color(0xFF131E17),
+          color: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF131E17)
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withAlpha(30), width: 1),
+          border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant, width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -230,13 +232,16 @@ class _LangPill extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: active ? AppTheme.healthyGreen.withAlpha(220) : Colors.transparent,
+        color:
+            active ? AppTheme.healthyGreen.withAlpha(220) : Colors.transparent,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: active ? Colors.white : Colors.white38,
+          color: active
+              ? Colors.white
+              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
@@ -267,12 +272,16 @@ class _HeroCaptureCard extends StatelessWidget {
         duration: const Duration(milliseconds: 300),
         height: 260,
         decoration: BoxDecoration(
-          color: hasImage ? Colors.transparent : const Color(0xFF131E17),
+          color: hasImage
+              ? Colors.transparent
+              : (Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF131E17)
+                  : Theme.of(context).colorScheme.surfaceContainerHighest),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: hasImage
                 ? Colors.transparent
-                : Colors.white.withAlpha(18),
+                : Theme.of(context).colorScheme.outlineVariant,
             width: 1,
           ),
         ),
@@ -334,8 +343,8 @@ class _HeroCaptureCard extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     s.tapToCapture,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.2,
@@ -345,7 +354,10 @@ class _HeroCaptureCard extends StatelessWidget {
                   Text(
                     s.photoAnalyzedByAi,
                     style: TextStyle(
-                      color: Colors.white.withAlpha(100),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.38),
                       fontSize: 13,
                       fontWeight: FontWeight.w400,
                     ),
@@ -377,7 +389,8 @@ class _BatchSection extends StatelessWidget {
         Text(
           s.batchName,
           style: TextStyle(
-            color: Colors.white.withAlpha(130),
+            color:
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
             fontSize: 12,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.3,
@@ -387,9 +400,12 @@ class _BatchSection extends StatelessWidget {
         Container(
           height: 50,
           decoration: BoxDecoration(
-            color: const Color(0xFF131E17),
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF131E17)
+                : Colors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withAlpha(18), width: 1),
+            border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant, width: 1),
           ),
           child: Row(
             children: [
@@ -397,15 +413,18 @@ class _BatchSection extends StatelessWidget {
               Icon(
                 Icons.tag_rounded,
                 size: 17,
-                color: Colors.white.withAlpha(100),
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.38),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: TextField(
                   controller: controller,
                   onChanged: onChanged,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                   ),
@@ -415,7 +434,10 @@ class _BatchSection extends StatelessWidget {
                     filled: false,
                     hintText: s.batchNameHint,
                     hintStyle: TextStyle(
-                      color: Colors.white.withAlpha(60),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.24),
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
                     ),
@@ -486,12 +508,16 @@ class _OutlineBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = accent
         ? AppTheme.healthyGreen.withAlpha(22)
-        : Colors.white.withAlpha(8);
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05);
     final border = accent
         ? AppTheme.healthyGreen.withAlpha(100)
-        : Colors.white.withAlpha(20);
-    final iconColor = accent ? AppTheme.healthyGreen : Colors.white60;
-    final textColor = accent ? AppTheme.healthyGreen : Colors.white70;
+        : Theme.of(context).colorScheme.outlineVariant;
+    final iconColor = accent
+        ? AppTheme.healthyGreen
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6);
+    final textColor = accent
+        ? AppTheme.healthyGreen
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
 
     return GestureDetector(
       onTap: onTap,
@@ -533,22 +559,27 @@ class _Tip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF131E17),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF131E17)
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withAlpha(12), width: 1),
+        border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant, width: 1),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.lightbulb_outline_rounded,
-              size: 16,
-              color: AppTheme.discoloredAmber.withAlpha(200)),
+              size: 16, color: AppTheme.discoloredAmber.withAlpha(200)),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               s.captureTip,
               style: TextStyle(
-                color: Colors.white.withAlpha(120),
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.47),
                 fontSize: 12,
                 fontWeight: FontWeight.w400,
                 height: 1.5,

@@ -17,7 +17,8 @@ class AnalysisResultScreen extends ConsumerStatefulWidget {
   const AnalysisResultScreen({super.key, required this.result});
 
   @override
-  ConsumerState<AnalysisResultScreen> createState() => _AnalysisResultScreenState();
+  ConsumerState<AnalysisResultScreen> createState() =>
+      _AnalysisResultScreenState();
 }
 
 class _AnalysisResultScreenState extends ConsumerState<AnalysisResultScreen> {
@@ -53,7 +54,7 @@ class _AnalysisResultScreenState extends ConsumerState<AnalysisResultScreen> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1F14),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           // ── Full-screen annotated image (fades as sheet expands) ─────
@@ -61,100 +62,103 @@ class _AnalysisResultScreenState extends ConsumerState<AnalysisResultScreen> {
             opacity: _imageOpacity,
             duration: const Duration(milliseconds: 80),
             child: SizedBox(
-            height: size.height * 0.58,
-            width: size.width,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Real annotated image from backend, plain dark bg as fallback
-                result.morphologyImageBytes != null
-                    ? GestureDetector(
-                        onTap: () => FullScreenImageViewer.show(
+              height: size.height * 0.58,
+              width: size.width,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Real annotated image from backend, plain dark bg as fallback
+                  result.morphologyImageBytes != null
+                      ? GestureDetector(
+                          onTap: () => FullScreenImageViewer.show(
+                            context,
+                            imageBytes: result.morphologyImageBytes!,
+                            downloadFilename:
+                                'chal_ai_${result.batchName.replaceAll(' ', '_')}.jpg',
+                          ),
+                          child: Image.memory(
+                            result.morphologyImageBytes!,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Container(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          child: Center(
+                            child: Icon(Icons.grain_rounded,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.12),
+                                size: 64),
+                          ),
+                        ),
+
+                  // Expand + download buttons (only when image is available)
+                  if (result.morphologyImageBytes != null)
+                    Positioned(
+                      bottom: 16,
+                      right: 16,
+                      child: _ImageActionButtons(
+                        bytes: result.morphologyImageBytes!,
+                        filename:
+                            'chal_ai_${result.batchName.replaceAll(' ', '_')}.jpg',
+                        onExpand: () => FullScreenImageViewer.show(
                           context,
                           imageBytes: result.morphologyImageBytes!,
                           downloadFilename:
                               'chal_ai_${result.batchName.replaceAll(' ', '_')}.jpg',
                         ),
-                        child: Image.memory(
-                          result.morphologyImageBytes!,
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Container(
-                        color: const Color(0xFF0D1F15),
-                        child: const Center(
-                          child: Icon(Icons.grain_rounded,
-                              color: Colors.white12, size: 64),
-                        ),
                       ),
+                    ),
 
-                // Expand + download buttons (only when image is available)
-                if (result.morphologyImageBytes != null)
+                  // Top gradient for readability
                   Positioned(
-                    bottom: 16,
-                    right: 16,
-                    child: _ImageActionButtons(
-                      bytes: result.morphologyImageBytes!,
-                      filename:
-                          'chal_ai_${result.batchName.replaceAll(' ', '_')}.jpg',
-                      onExpand: () => FullScreenImageViewer.show(
-                        context,
-                        imageBytes: result.morphologyImageBytes!,
-                        downloadFilename:
-                            'chal_ai_${result.batchName.replaceAll(' ', '_')}.jpg',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: MediaQuery.of(context).padding.top + 64,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withAlpha(180),
+                            Colors.transparent,
+                          ],
+                        ),
                       ),
                     ),
                   ),
 
-                // Top gradient for readability
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: MediaQuery.of(context).padding.top + 64,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withAlpha(180),
-                          Colors.transparent,
-                        ],
+                  // Bottom gradient blending into card
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Theme.of(context).scaffoldBackgroundColor,
+                            Colors.transparent,
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-
-                // Bottom gradient blending into card
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 80,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          const Color(0xFF0D1F15),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                ],
+              ),
             ),
           ),
 
           // ── App Bar ──────────────────────────────────────────────────
           SafeArea(
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
                   _BackButton(onTap: () => context.pop()),
@@ -258,8 +262,8 @@ class _ShareButton extends StatelessWidget {
           color: AppTheme.healthyGreen.withAlpha(200),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(Icons.bar_chart_rounded,
-            color: Colors.white, size: 20),
+        child:
+            const Icon(Icons.bar_chart_rounded, color: Colors.white, size: 20),
       ),
     );
   }
@@ -284,8 +288,7 @@ class _SummarySheet extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: theme.cardTheme.color ?? const Color(0xFF162B1E),
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withAlpha(100),
@@ -305,7 +308,10 @@ class _SummarySheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.white24,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.24),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -322,7 +328,8 @@ class _SummarySheet extends StatelessWidget {
                     Text(
                       s.integrityScore.toUpperCase(),
                       style: theme.textTheme.titleSmall?.copyWith(
-                          color: Colors.white60,
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.6),
                           letterSpacing: 1.0,
                           fontSize: 11),
                     ),
@@ -333,8 +340,8 @@ class _SummarySheet extends StatelessWidget {
                       children: [
                         Text(
                           result.integrityScore.toStringAsFixed(1),
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface,
                             fontSize: 56,
                             fontWeight: FontWeight.w800,
                             letterSpacing: -2,
@@ -378,7 +385,9 @@ class _SummarySheet extends StatelessWidget {
           Text(
             s.grainBreakdown,
             style: theme.textTheme.labelMedium?.copyWith(
-                letterSpacing: 1.2, color: Colors.white38, fontSize: 11),
+                letterSpacing: 1.2,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.38),
+                fontSize: 11),
           ),
           const SizedBox(height: 12),
           Row(
@@ -452,7 +461,8 @@ class _SummarySheet extends StatelessWidget {
               const SizedBox(width: 12),
               _InfoTile(
                 label: s.processedIn,
-                value: '${result.processingTime.inMilliseconds / 1000}${s.seconds}',
+                value:
+                    '${result.processingTime.inMilliseconds / 1000}${s.seconds}',
                 icon: Icons.timer_rounded,
               ),
               const SizedBox(width: 12),
@@ -468,8 +478,7 @@ class _SummarySheet extends StatelessWidget {
 
           // ── View Full Report Button ──────────────────────────────────
           FilledButton.icon(
-            onPressed: () =>
-                context.push(AppRoutes.report, extra: result),
+            onPressed: () => context.push(AppRoutes.report, extra: result),
             icon: const Icon(Icons.analytics_rounded),
             label: Text(s.viewFullReport),
             style: FilledButton.styleFrom(
@@ -506,6 +515,7 @@ class _VarietyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -518,8 +528,8 @@ class _VarietyCard extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: AppTheme.healthyGreen.withAlpha(80), width: 1.5),
+        border:
+            Border.all(color: AppTheme.healthyGreen.withAlpha(80), width: 1.5),
       ),
       child: Row(
         children: [
@@ -540,8 +550,8 @@ class _VarietyCard extends StatelessWidget {
               children: [
                 Text(
                   s.varietyDetected,
-                  style: const TextStyle(
-                      color: Colors.white38,
+                  style: TextStyle(
+                      color: cs.onSurface.withValues(alpha: 0.38),
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.2),
@@ -549,8 +559,8 @@ class _VarietyCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   result.detectedVariety,
-                  style: const TextStyle(
-                      color: Colors.white,
+                  style: TextStyle(
+                      color: cs.onSurface,
                       fontSize: 20,
                       fontWeight: FontWeight.w700),
                 ),
@@ -568,7 +578,8 @@ class _VarietyCard extends StatelessWidget {
               ),
               Text(
                 s.confidence,
-                style: const TextStyle(color: Colors.white38, fontSize: 11),
+                style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.38), fontSize: 11),
               ),
             ],
           ),
@@ -591,7 +602,8 @@ class _ImageActionButtons extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_ImageActionButtons> createState() => _ImageActionButtonsState();
+  ConsumerState<_ImageActionButtons> createState() =>
+      _ImageActionButtonsState();
 }
 
 class _ImageActionButtonsState extends ConsumerState<_ImageActionButtons> {
@@ -692,29 +704,29 @@ class _InfoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Expanded(
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
         decoration: BoxDecoration(
-          color: Colors.white.withAlpha(8),
+          color: cs.onSurface.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
           children: [
-            Icon(icon, color: Colors.white38, size: 18),
+            Icon(icon, color: cs.onSurface.withValues(alpha: 0.38), size: 18),
             const SizedBox(height: 6),
             Text(
               value,
-              style: const TextStyle(
-                  color: Colors.white,
+              style: TextStyle(
+                  color: cs.onSurface,
                   fontSize: 15,
                   fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 2),
             Text(label,
-                style: const TextStyle(
-                    color: Colors.white38,
+                style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.38),
                     fontSize: 10,
                     fontWeight: FontWeight.w500)),
           ],

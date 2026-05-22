@@ -9,6 +9,7 @@ class AppLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final logo = ClipRRect(
       borderRadius: BorderRadius.circular(size * 0.25),
       child: Image.asset(
@@ -31,7 +32,7 @@ class AppLogo extends StatelessWidget {
               TextSpan(
                 text: 'Chal',
                 style: GoogleFonts.inter(
-                  color: Colors.white,
+                  color: cs.onSurface,
                   fontSize: (size * 0.55).clamp(16.0, 30.0),
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,

@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/localization/app_strings.dart';
-import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/analysis_record.dart';
 import '../providers/history_provider.dart';
+import '../../../../core/router/app_router.dart';
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
@@ -17,32 +16,36 @@ class HistoryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(historyProvider);
     final s = ref.watch(appStringsProvider);
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1410),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0B1410),
-        foregroundColor: Colors.white,
         title: Text(
           s.analysisHistory,
-          style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 18),
         ),
         centerTitle: true,
         elevation: 0,
       ),
       body: historyAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.healthyGreen)),
+        loading: () => const Center(
+            child: CircularProgressIndicator(color: AppTheme.healthyGreen)),
         error: (e, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline_rounded, color: Colors.white38, size: 48),
+              Icon(Icons.error_outline_rounded,
+                  color: cs.onSurface.withValues(alpha: 0.38), size: 48),
               const SizedBox(height: 12),
-              Text(s.failedToLoadHistory, style: GoogleFonts.inter(color: Colors.white54, fontSize: 14)),
+              Text(s.failedToLoadHistory,
+                  style: GoogleFonts.inter(
+                      color: cs.onSurface.withValues(alpha: 0.54),
+                      fontSize: 14)),
               const SizedBox(height: 8),
               TextButton(
                 onPressed: () => ref.invalidate(historyProvider),
-                child: Text(s.retry, style: GoogleFonts.inter(color: AppTheme.healthyGreen)),
+                child: Text(s.retry,
+                    style: GoogleFonts.inter(color: AppTheme.healthyGreen)),
               ),
             ],
           ),
@@ -53,11 +56,19 @@ class HistoryScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.history_rounded, color: Colors.white24, size: 64),
+                  Icon(Icons.history_rounded,
+                      color: cs.onSurface.withValues(alpha: 0.24), size: 64),
                   const SizedBox(height: 16),
-                  Text(s.noAnalysesYet, style: GoogleFonts.inter(color: Colors.white38, fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text(s.noAnalysesYet,
+                      style: GoogleFonts.inter(
+                          color: cs.onSurface.withValues(alpha: 0.38),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  Text(s.savedAnalysesWillAppear, style: GoogleFonts.inter(color: Colors.white24, fontSize: 13)),
+                  Text(s.savedAnalysesWillAppear,
+                      style: GoogleFonts.inter(
+                          color: cs.onSurface.withValues(alpha: 0.24),
+                          fontSize: 13)),
                 ],
               ),
             );
@@ -68,7 +79,8 @@ class HistoryScreen extends ConsumerWidget {
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, index) => _HistoryCard(
               record: records[index],
-              onDelete: () => ref.read(historyProvider.notifier).delete(records[index].id),
+              onDelete: () =>
+                  ref.read(historyProvider.notifier).delete(records[index].id),
             ),
           );
         },
@@ -122,9 +134,11 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(appStringsProvider);
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final score = widget.record.integrityScore;
     final scoreColor = _scoreColor(score);
-    final dateStr = DateFormat('MMM d, yyyy · h:mm a').format(widget.record.createdAt.toLocal());
+    final dateStr = _formatDate(widget.record.createdAt.toLocal());
 
     return Material(
       color: Colors.transparent,
@@ -134,9 +148,9 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
         child: Ink(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF131E17),
+            color: isDark ? const Color(0xFF131E17) : Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            border: Border.all(color: cs.outlineVariant),
           ),
           child: Row(
             children: [
@@ -153,9 +167,16 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
                   children: [
                     Text(
                       score.toStringAsFixed(0),
-                      style: GoogleFonts.inter(color: scoreColor, fontSize: 16, fontWeight: FontWeight.w800),
+                      style: GoogleFonts.inter(
+                          color: scoreColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800),
                     ),
-                    Text('%', style: GoogleFonts.inter(color: scoreColor.withValues(alpha: 0.7), fontSize: 10, fontWeight: FontWeight.w600)),
+                    Text('%',
+                        style: GoogleFonts.inter(
+                            color: scoreColor.withValues(alpha: 0.7),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -166,19 +187,27 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
                   children: [
                     Text(
                       widget.record.batchName,
-                      style: GoogleFonts.inter(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                      style: GoogleFonts.inter(
+                          color: cs.onSurface,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       widget.record.detectedVariety.isNotEmpty
                           ? widget.record.detectedVariety
                           : s.unknownVariety,
-                      style: GoogleFonts.inter(color: AppTheme.healthyGreen, fontSize: 12, fontWeight: FontWeight.w500),
+                      style: GoogleFonts.inter(
+                          color: AppTheme.healthyGreen,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       dateStr,
-                      style: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
+                      style: GoogleFonts.inter(
+                          color: cs.onSurface.withValues(alpha: 0.38),
+                          fontSize: 12),
                     ),
                   ],
                 ),
@@ -187,12 +216,15 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
                 const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.healthyGreen),
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppTheme.healthyGreen),
                 )
               else
-                const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 20),
+                Icon(Icons.chevron_right_rounded,
+                    color: cs.onSurface.withValues(alpha: 0.24), size: 20),
               IconButton(
-                icon: const Icon(Icons.delete_outline_rounded, color: Colors.white24, size: 20),
+                icon: Icon(Icons.delete_outline_rounded,
+                    color: cs.onSurface.withValues(alpha: 0.24), size: 20),
                 onPressed: () => _confirmDelete(context, s),
               ),
             ],
@@ -202,22 +234,56 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
     );
   }
 
+  String _formatDate(DateTime dt) {
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final ampm = dt.hour < 12 ? 'AM' : 'PM';
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year} · $h:$m $ampm';
+  }
+
   void _confirmDelete(BuildContext context, AppStrings s) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF131E17),
+        backgroundColor: isDark ? const Color(0xFF131E17) : cs.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(s.deleteRecord, style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700)),
-        content: Text(s.deleteConfirmMessage, style: GoogleFonts.inter(color: Colors.white54, fontSize: 14)),
+        title: Text(s.deleteRecord,
+            style: GoogleFonts.inter(
+                color: cs.onSurface, fontWeight: FontWeight.w700)),
+        content: Text(s.deleteConfirmMessage,
+            style: GoogleFonts.inter(
+                color: cs.onSurface.withValues(alpha: 0.54), fontSize: 14)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(s.cancel, style: GoogleFonts.inter(color: Colors.white54)),
+            child: Text(s.cancel,
+                style: GoogleFonts.inter(
+                    color: cs.onSurface.withValues(alpha: 0.54))),
           ),
           TextButton(
-            onPressed: () { Navigator.pop(context); widget.onDelete(); },
-            child: Text(s.delete, style: GoogleFonts.inter(color: AppTheme.brokenRed, fontWeight: FontWeight.w600)),
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onDelete();
+            },
+            child: Text(s.delete,
+                style: GoogleFonts.inter(
+                    color: AppTheme.brokenRed, fontWeight: FontWeight.w600)),
           ),
         ],
       ),

@@ -19,6 +19,7 @@ class StatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -37,8 +38,10 @@ class StatChip extends StatelessWidget {
           ),
           Text(
             label,
-            style: const TextStyle(
-                color: Colors.white60, fontSize: 11, fontWeight: FontWeight.w500),
+            style: TextStyle(
+                color: cs.onSurface.withValues(alpha: 0.6),
+                fontSize: 11,
+                fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 6),
           // Mini progress bar
@@ -46,7 +49,7 @@ class StatChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: pct / 100,
-              backgroundColor: Colors.white12,
+              backgroundColor: cs.onSurface.withValues(alpha: 0.12),
               valueColor: AlwaysStoppedAnimation(color),
               minHeight: 4,
             ),

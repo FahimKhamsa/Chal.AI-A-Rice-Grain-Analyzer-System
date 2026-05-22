@@ -12,7 +12,8 @@ class ResetPasswordScreen extends ConsumerStatefulWidget {
   const ResetPasswordScreen({super.key});
 
   @override
-  ConsumerState<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
+  ConsumerState<ResetPasswordScreen> createState() =>
+      _ResetPasswordScreenState();
 }
 
 class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
@@ -48,7 +49,9 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       await ref.read(authServiceProvider).updatePassword(newPass);
       if (mounted) context.go(AppRoutes.capture);
     } catch (e) {
-      if (mounted) _showError(ref.read(appStringsProvider).couldNotUpdatePassword);
+      if (mounted) {
+        _showError(ref.read(appStringsProvider).couldNotUpdatePassword);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -67,15 +70,13 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(appStringsProvider);
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1410),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0B1410),
-        foregroundColor: Colors.white,
         elevation: 0,
         title: Text(
           s.setNewPassword,
-          style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
+          style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 18),
         ),
       ),
       body: SafeArea(
@@ -87,10 +88,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               const SizedBox(height: 12),
               Text(
                 s.chooseNewPassword,
-                style: GoogleFonts.inter(color: Colors.white54, fontSize: 14, height: 1.5),
+                style: GoogleFonts.inter(
+                    color: cs.onSurface.withValues(alpha: 0.54),
+                    fontSize: 14,
+                    height: 1.5),
               ),
               const SizedBox(height: 32),
-
               _PasswordField(
                 controller: _newPassCtrl,
                 label: s.newPassword,
@@ -100,18 +103,17 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 16),
-
               _PasswordField(
                 controller: _confirmPassCtrl,
                 label: s.confirmNewPassword,
                 hint: s.passwordPlaceholder,
                 obscure: _obscureConfirm,
-                onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                onToggle: () =>
+                    setState(() => _obscureConfirm = !_obscureConfirm),
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _handleSubmit(),
               ),
               const SizedBox(height: 28),
-
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
@@ -119,19 +121,23 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.healthyGreen,
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: AppTheme.healthyGreen.withValues(alpha: 0.4),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    disabledBackgroundColor:
+                        AppTheme.healthyGreen.withValues(alpha: 0.4),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                     elevation: 0,
                   ),
                   child: _loading
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
                         )
                       : Text(
                           s.updatePassword,
-                          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700),
+                          style: GoogleFonts.inter(
+                              fontSize: 15, fontWeight: FontWeight.w700),
                         ),
                 ),
               ),
@@ -164,42 +170,53 @@ class _PasswordField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: GoogleFonts.inter(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.w500)),
+        Text(label,
+            style: GoogleFonts.inter(
+                color: cs.onSurface.withValues(alpha: 0.6),
+                fontSize: 13,
+                fontWeight: FontWeight.w500)),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           obscureText: obscure,
           textInputAction: textInputAction,
           onFieldSubmitted: onSubmitted,
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
+          style: GoogleFonts.inter(color: cs.onSurface, fontSize: 15),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 15),
+            hintStyle: GoogleFonts.inter(
+                color: cs.onSurface.withValues(alpha: 0.24), fontSize: 15),
             filled: true,
-            fillColor: const Color(0xFF131E17),
+            fillColor: isDark ? const Color(0xFF131E17) : Colors.white,
             suffixIcon: IconButton(
               icon: Icon(
-                obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                color: Colors.white38,
+                obscure
+                    ? Icons.visibility_off_rounded
+                    : Icons.visibility_rounded,
+                color: cs.onSurface.withValues(alpha: 0.38),
                 size: 20,
               ),
               onPressed: onToggle,
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white12),
+              borderSide: BorderSide(color: cs.outlineVariant),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white12),
+              borderSide: BorderSide(color: cs.outlineVariant),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.healthyGreen, width: 1.5),
+              borderSide:
+                  const BorderSide(color: AppTheme.healthyGreen, width: 1.5),
             ),
           ),
         ),

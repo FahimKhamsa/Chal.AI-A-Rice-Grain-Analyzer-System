@@ -53,6 +53,8 @@ class AppStrings {
   // ── Settings screen ───────────────────────────────────────────────────────
   String get settings => isBn ? 'সেটিংস' : 'Settings';
   String get about => isBn ? 'পরিচিতি' : 'About';
+  String get appearance => isBn ? 'চেহারা' : 'Appearance';
+  String get theme => isBn ? 'থিম' : 'Theme';
 
   // ── Login screen ──────────────────────────────────────────────────────────
   String get signInToContinue =>

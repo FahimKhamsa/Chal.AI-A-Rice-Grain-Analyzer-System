@@ -9,7 +9,6 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../../../../core/widgets/app_sidebar.dart';
-import '../../../analysis/domain/models/analysis_result.dart';
 import '../providers/capture_provider.dart';
 import '../widgets/analyzing_overlay.dart';
 
@@ -23,6 +22,7 @@ class CaptureScreen extends ConsumerStatefulWidget {
 class _CaptureScreenState extends ConsumerState<CaptureScreen>
     with SingleTickerProviderStateMixin {
   final _batchController = TextEditingController(text: '');
+  final _batchFocusNode = FocusNode();
   late AnimationController _entryCtrl;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
@@ -45,6 +45,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   @override
   void dispose() {
     _batchController.dispose();
+    _batchFocusNode.dispose();
     _entryCtrl.dispose();
     super.dispose();
   }
@@ -59,7 +60,12 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     ref.listen(captureProvider, (prev, next) {
       if (next.status == CaptureStatus.done && next.result != null) {
         context.push(AppRoutes.analysisResult, extra: next.result);
-        Future.delayed(const Duration(milliseconds: 600), notifier.reset);
+        _batchController.clear();
+        _batchFocusNode.unfocus();
+        Future.delayed(const Duration(milliseconds: 600), () {
+          notifier.reset();
+          _batchFocusNode.unfocus();
+        });
       } else if (next.status == CaptureStatus.error &&
           next.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -83,78 +89,82 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       }
     });
 
-    return Scaffold(
-      drawer: const AppSidebar(),
-      body: Stack(
-        children: [
-          SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnim,
-              child: SlideTransition(
-                position: _slideAnim,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // ── Header ──────────────────────────────────────────
-                    const _Header(),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        drawer: const AppSidebar(),
+        body: Stack(
+          children: [
+            SafeArea(
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: SlideTransition(
+                  position: _slideAnim,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // ── Header ──────────────────────────────────────────
+                      const _Header(),
 
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // ── Hero capture card ────────────────────
-                            _HeroCaptureCard(
-                              imageBytes: state.imageBytes,
-                              onCameraTap: () => notifier.captureFromCamera(),
-                              s: s,
-                            ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // ── Hero capture card ────────────────────
+                              _HeroCaptureCard(
+                                imageBytes: state.imageBytes,
+                                onCameraTap: () => notifier.captureFromCamera(),
+                                s: s,
+                              ),
 
-                            const SizedBox(height: 20),
+                              const SizedBox(height: 20),
 
-                            // ── Batch name field ─────────────────────
-                            _BatchSection(
-                              controller: _batchController,
-                              onChanged: notifier.setBatchName,
-                              s: s,
-                            ),
+                              // ── Batch name field ─────────────────────
+                              _BatchSection(
+                                controller: _batchController,
+                                focusNode: _batchFocusNode,
+                                onChanged: notifier.setBatchName,
+                                s: s,
+                              ),
 
-                            const SizedBox(height: 20),
+                              const SizedBox(height: 20),
 
-                            // ── Action buttons ───────────────────────
-                            _ActionButtons(
-                              onGallery: () => notifier.pickFromGallery(),
-                              onDemo: () {
-                                final name =
-                                    _batchController.text.trim().isEmpty
-                                        ? s.batchADefault
-                                        : _batchController.text.trim();
-                                context.push(
-                                  AppRoutes.analysisResult,
-                                  extra: AnalysisResult.mock(batchName: name),
-                                );
-                              },
-                              s: s,
-                            ),
+                              // ── Action buttons ───────────────────────
+                              _ActionButtons(
+                                onGallery: () => notifier.pickFromGallery(),
+                                s: s,
+                              ),
 
-                            const SizedBox(height: 20),
+                              const SizedBox(height: 12),
+                              _StartAnalysisButton(
+                                onTap: state.status == CaptureStatus.imageSelected
+                                    ? () => notifier.startAnalysis()
+                                    : null,
+                                hasImage: state.hasImage,
+                                s: s,
+                              ),
 
-                            // ── Tip ──────────────────────────────────
-                            _Tip(s: s),
+                              const SizedBox(height: 20),
 
-                            SizedBox(height: mq.padding.bottom + 16),
-                          ],
+                              // ── Tip ──────────────────────────────────
+                              _Tip(s: s),
+
+                              SizedBox(height: mq.padding.bottom + 16),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          if (state.status == CaptureStatus.analyzing) const AnalyzingOverlay(),
-        ],
+            if (state.status == CaptureStatus.analyzing)
+              const AnalyzingOverlay(),
+          ],
+        ),
       ),
     );
   }
@@ -373,10 +383,12 @@ class _HeroCaptureCard extends StatelessWidget {
 
 class _BatchSection extends StatelessWidget {
   final TextEditingController controller;
+  final FocusNode focusNode;
   final ValueChanged<String> onChanged;
   final AppStrings s;
   const _BatchSection({
     required this.controller,
+    required this.focusNode,
     required this.onChanged,
     required this.s,
   });
@@ -397,57 +409,65 @@ class _BatchSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Container(
-          height: 50,
-          decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
+        TextField(
+          controller: controller,
+          focusNode: focusNode,
+          onChanged: onChanged,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+          cursorColor: AppTheme.healthyGreen,
+          decoration: InputDecoration(
+            prefixIcon: Icon(
+              Icons.tag_rounded,
+              size: 17,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.38),
+            ),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 44,
+              minHeight: 0,
+            ),
+            hintText: s.batchNameHint,
+            hintStyle: TextStyle(
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.24),
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+            filled: true,
+            fillColor: Theme.of(context).brightness == Brightness.dark
                 ? const Color(0xFF131E17)
                 : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-                color: Theme.of(context).colorScheme.outlineVariant, width: 1),
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 14),
-              Icon(
-                Icons.tag_rounded,
-                size: 17,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.38),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant,
+                width: 1,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  onChanged: onChanged,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  cursorColor: AppTheme.healthyGreen,
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    filled: false,
-                    hintText: s.batchNameHint,
-                    hintStyle: TextStyle(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.24),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                    ),
-                    contentPadding: EdgeInsets.zero,
-                    isDense: true,
-                  ),
-                ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(
+                color: AppTheme.healthyGreen,
+                width: 1.5,
               ),
-              const SizedBox(width: 14),
-            ],
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant,
+                width: 1,
+              ),
+            ),
           ),
         ),
       ],
@@ -459,11 +479,11 @@ class _BatchSection extends StatelessWidget {
 
 class _ActionButtons extends StatelessWidget {
   final VoidCallback onGallery;
-  final VoidCallback onDemo;
+  // final VoidCallback onDemo;
   final AppStrings s;
   const _ActionButtons({
     required this.onGallery,
-    required this.onDemo,
+    // required this.onDemo,
     required this.s,
   });
 
@@ -478,15 +498,15 @@ class _ActionButtons extends StatelessWidget {
             onTap: onGallery,
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _OutlineBtn(
-            icon: Icons.play_arrow_rounded,
-            label: s.runDemo,
-            onTap: onDemo,
-            accent: true,
-          ),
-        ),
+        // const SizedBox(width: 12),
+        // Expanded(
+        //   child: _OutlineBtn(
+        //     icon: Icons.play_arrow_rounded,
+        //     label: s.runDemo,
+        //     onTap: onDemo,
+        //     accent: true,
+        //   ),
+        // ),
       ],
     );
   }
@@ -496,28 +516,18 @@ class _OutlineBtn extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final bool accent;
   const _OutlineBtn({
     required this.icon,
     required this.label,
     required this.onTap,
-    this.accent = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bg = accent
-        ? AppTheme.healthyGreen.withAlpha(22)
-        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05);
-    final border = accent
-        ? AppTheme.healthyGreen.withAlpha(100)
-        : Theme.of(context).colorScheme.outlineVariant;
-    final iconColor = accent
-        ? AppTheme.healthyGreen
-        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6);
-    final textColor = accent
-        ? AppTheme.healthyGreen
-        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
+    final bg = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05);
+    final border = Theme.of(context).colorScheme.outlineVariant;
+    final iconColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6);
+    final textColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
 
     return GestureDetector(
       onTap: onTap,
@@ -543,6 +553,81 @@ class _OutlineBtn extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Start Analysis Button ────────────────────────────────────────────────────
+
+class _StartAnalysisButton extends StatelessWidget {
+  final VoidCallback? onTap;
+  final bool hasImage;
+  final AppStrings s;
+  const _StartAnalysisButton({
+    required this.onTap,
+    required this.hasImage,
+    required this.s,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (hasImage) {
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 52,
+          decoration: BoxDecoration(
+            color: AppTheme.healthyGreen,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                s.startAnalysis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 52,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.add_photo_alternate_outlined,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            s.uploadImageToStart,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

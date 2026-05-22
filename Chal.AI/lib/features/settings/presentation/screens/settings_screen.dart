@@ -6,6 +6,7 @@ import '../../../../core/localization/app_strings.dart';
 import '../../../../core/providers/language_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_sidebar.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -33,6 +34,7 @@ class SettingsScreen extends ConsumerWidget {
     );
 
     return Scaffold(
+      drawer: const AppSidebar(),
       appBar: AppBar(
         title: Text(
           s.settings,

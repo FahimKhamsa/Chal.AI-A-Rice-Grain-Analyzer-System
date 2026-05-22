@@ -23,7 +23,7 @@ import '../../../history/presentation/providers/history_provider.dart';
 const bool _useMock = bool.fromEnvironment('USE_MOCK', defaultValue: false);
 const bool _useRunPod = bool.fromEnvironment('USE_RUNPOD', defaultValue: true);
 
-enum CaptureStatus { idle, analyzing, done, error }
+enum CaptureStatus { idle, imageSelected, analyzing, done, error }
 
 class CaptureState {
   final String batchName;
@@ -94,34 +94,39 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
     state = state.copyWith(isFlashOn: !state.isFlashOn);
   }
 
-  Future<AnalysisResult?> pickFromGallery() async {
+  Future<void> pickFromGallery() async {
     final xfile = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 90,
     );
-    if (xfile == null) return null;
-    return _startAnalysis(xfile);
+    if (xfile == null) return;
+    await _loadImage(xfile);
   }
 
-  Future<AnalysisResult?> captureFromCamera() async {
+  Future<void> captureFromCamera() async {
     final xfile = await _picker.pickImage(
       source: ImageSource.camera,
       imageQuality: 90,
       preferredCameraDevice: CameraDevice.rear,
     );
-    if (xfile == null) return null;
-    return _startAnalysis(xfile);
+    if (xfile == null) return;
+    await _loadImage(xfile);
   }
 
-  Future<AnalysisResult?> _startAnalysis(XFile xfile) async {
-    // Load bytes immediately so the preview renders on all platforms
+  Future<void> _loadImage(XFile xfile) async {
     final bytes = await xfile.readAsBytes();
     state = state.copyWith(
       imageBytes: bytes,
       selectedXFile: xfile,
-      status: CaptureStatus.analyzing,
+      status: CaptureStatus.imageSelected,
       clearHistorySaveError: true,
     );
+  }
+
+  Future<AnalysisResult?> startAnalysis() async {
+    final xfile = state.selectedXFile;
+    if (xfile == null) return null;
+    state = state.copyWith(status: CaptureStatus.analyzing);
     return _runAnalysis(xfile);
   }
 

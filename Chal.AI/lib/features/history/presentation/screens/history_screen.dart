@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/analysis_record.dart';
 import '../providers/history_provider.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/widgets/app_sidebar.dart';
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
@@ -19,6 +20,7 @@ class HistoryScreen extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
+      drawer: const AppSidebar(),
       appBar: AppBar(
         title: Text(
           s.analysisHistory,

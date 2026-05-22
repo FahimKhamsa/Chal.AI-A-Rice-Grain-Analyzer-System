@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_sidebar.dart';
 import '../../domain/models/user_profile.dart';
 import '../providers/profile_provider.dart';
 
@@ -141,6 +142,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             '${profile.firstName[0]}${profile.lastName[0]}'.toUpperCase();
 
         return Scaffold(
+          drawer: const AppSidebar(),
           appBar: AppBar(
             elevation: 0,
             title: Text(

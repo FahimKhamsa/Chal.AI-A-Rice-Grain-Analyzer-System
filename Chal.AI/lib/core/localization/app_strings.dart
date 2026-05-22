@@ -51,6 +51,9 @@ class AppStrings {
   String get couldNotSaveRecord =>
       isBn ? 'রেকর্ড সংরক্ষণ করা যায়নি' : 'Could not save record';
   String get batchADefault => isBn ? 'ব্যাচ এ' : 'Batch A';
+  String get startAnalysis => isBn ? 'বিশ্লেষণ শুরু করুন' : 'Start Analysis';
+  String get uploadImageToStart =>
+      isBn ? 'বিশ্লেষণ শুরু করতে ছবি যোগ করুন' : 'Upload an image to start analysis';
 
   // ── Settings screen ───────────────────────────────────────────────────────
   String get settings => isBn ? 'সেটিংস' : 'Settings';

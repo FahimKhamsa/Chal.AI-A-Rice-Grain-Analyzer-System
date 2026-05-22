@@ -163,6 +163,12 @@ class AppSidebar extends ConsumerWidget {
               isActive: currentLocation == AppRoutes.settings,
               onTap: () => navigate(AppRoutes.settings),
             ),
+            _SidebarItem(
+              icon: Icons.menu_book_outlined,
+              label: s.userGuidelines,
+              isActive: currentLocation == AppRoutes.guidelines,
+              onTap: () => navigate(AppRoutes.guidelines),
+            ),
 
             const Spacer(),
             Divider(color: cs.outlineVariant, height: 1),

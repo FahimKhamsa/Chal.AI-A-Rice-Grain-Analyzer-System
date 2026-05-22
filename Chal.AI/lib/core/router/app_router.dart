@@ -16,6 +16,7 @@ import '../../features/analysis/domain/models/analysis_result.dart';
 import '../../features/history/presentation/screens/history_screen.dart';
 import '../../features/auth/presentation/screens/profile_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/guidelines/presentation/screens/user_guidelines_screen.dart';
 import '../../features/splash/splash_screen.dart';
 
 // Route path constants — use these instead of raw strings to prevent typos
@@ -32,6 +33,7 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String profileSetup = '/profile-setup';
   static const String settings = '/settings';
+  static const String guidelines = '/guidelines';
 }
 
 // Bridges the Riverpod authStateProvider stream to GoRouter's ChangeNotifier-
@@ -188,6 +190,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _buildPage(
           key: state.pageKey,
           child: const SettingsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.guidelines,
+        name: 'guidelines',
+        pageBuilder: (context, state) => _buildPage(
+          key: state.pageKey,
+          child: const UserGuidelinesScreen(),
         ),
       ),
     ],

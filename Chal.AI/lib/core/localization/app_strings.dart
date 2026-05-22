@@ -52,8 +52,9 @@ class AppStrings {
       isBn ? 'রেকর্ড সংরক্ষণ করা যায়নি' : 'Could not save record';
   String get batchADefault => isBn ? 'ব্যাচ এ' : 'Batch A';
   String get startAnalysis => isBn ? 'বিশ্লেষণ শুরু করুন' : 'Start Analysis';
-  String get uploadImageToStart =>
-      isBn ? 'বিশ্লেষণ শুরু করতে ছবি যোগ করুন' : 'Upload an image to start analysis';
+  String get uploadImageToStart => isBn
+      ? 'বিশ্লেষণ শুরু করতে ছবি যোগ করুন'
+      : 'Upload an image to start analysis';
 
   // ── Settings screen ───────────────────────────────────────────────────────
   String get settings => isBn ? 'সেটিংস' : 'Settings';
@@ -183,12 +184,12 @@ class AppStrings {
   String get confidence => isBn ? 'নিশ্চয়তা' : 'confidence';
   String get grainBreakdown => isBn ? 'দানা বিশ্লেষণ' : 'GRAIN BREAKDOWN';
   String get healthy => isBn ? 'অক্ষত দানা' : 'Healthy';
-  String get threeQuarterBroken => isBn ? '৩/৪ অংশ ভাঙা' : '¾ Broken';
-  String get halfBroken => isBn ? 'অর্ধেক ভাঙা' : 'Half Broken';
-  String get impurity => isBn ? 'অপদ্রব্য/ময়লা' : 'Impurity';
+  String get threeQuarterBroken => isBn ? '৩/৪ অংশ ভাঙা দানা' : '¾ Broken';
+  String get halfBroken => isBn ? 'অর্ধেক ভাঙা দানা' : 'Half Broken';
+  String get impurity => isBn ? 'অপদ্রব্য/ময়লা' : 'Impurity';
   String get discolored => isBn ? 'বিবর্ণ দানা' : 'Discolored';
   String get totalGrains => isBn ? 'মোট দানা' : 'Total Grains';
-  String get processedIn => isBn ? 'প্রসেসিং সময়' : 'Processed In';
+  String get processedIn => isBn ? 'প্রসেসিং সময়' : 'Processed In';
   String get analyzedOn => isBn ? 'বিশ্লেষণের তারিখ' : 'Analyzed On';
   String get viewFullReport =>
       isBn ? 'পূর্ণাঙ্গ রিপোর্ট দেখুন' : 'View Full Report';

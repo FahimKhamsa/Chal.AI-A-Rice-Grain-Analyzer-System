@@ -116,6 +116,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                               _HeroCaptureCard(
                                 imageBytes: state.imageBytes,
                                 onCameraTap: () => notifier.captureFromCamera(),
+                                onClear: () => notifier.reset(),
                                 s: s,
                               ),
 
@@ -265,10 +266,12 @@ class _LangPill extends StatelessWidget {
 class _HeroCaptureCard extends StatelessWidget {
   final Uint8List? imageBytes;
   final VoidCallback onCameraTap;
+  final VoidCallback onClear;
   final AppStrings s;
   const _HeroCaptureCard({
     required this.imageBytes,
     required this.onCameraTap,
+    required this.onClear,
     required this.s,
   });
 
@@ -302,29 +305,20 @@ class _HeroCaptureCard extends StatelessWidget {
                 children: [
                   Image.memory(imageBytes!, fit: BoxFit.cover),
                   Positioned(
-                    bottom: 12,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withAlpha(160),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.refresh_rounded,
-                              color: Colors.white, size: 14),
-                          const SizedBox(width: 5),
-                          Text(
-                            s.retake,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ],
+                    top: 8,
+                    right: 8,
+                    child: GestureDetector(
+                      onTap: onClear,
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close_rounded,
+                            color: Colors.white, size: 16),
                       ),
                     ),
                   ),

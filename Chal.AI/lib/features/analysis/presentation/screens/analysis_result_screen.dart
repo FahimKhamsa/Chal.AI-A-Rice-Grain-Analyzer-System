@@ -462,7 +462,7 @@ class _SummarySheet extends StatelessWidget {
               _InfoTile(
                 label: s.processedIn,
                 value:
-                    '${result.processingTime.inMilliseconds / 1000}${s.seconds}',
+                    '${result.processingTime.inMilliseconds / 1000} ${s.seconds}',
                 icon: Icons.timer_rounded,
               ),
               const SizedBox(width: 12),

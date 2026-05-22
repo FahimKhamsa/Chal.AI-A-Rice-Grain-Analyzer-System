@@ -152,48 +152,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 fontSize: 18,
               ),
             ),
-            actions: [
-              if (!_editMode)
-                TextButton(
-                  onPressed: () => _enterEditMode(profile),
-                  child: Text(
-                    s.edit,
-                    style: GoogleFonts.inter(
-                      color: AppTheme.healthyGreen,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
-                )
-              else ...[
-                TextButton(
-                  onPressed: _cancelEdit,
-                  child: Text(
-                    s.cancel,
-                    style: GoogleFonts.inter(
-                        color: cs.onSurface.withValues(alpha: 0.54),
-                        fontSize: 15),
-                  ),
-                ),
-                TextButton(
-                  onPressed: _saving ? null : () => _saveChanges(profile),
-                  child: _saving
-                      ? SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: cs.primary))
-                      : Text(
-                          s.save,
-                          style: GoogleFonts.inter(
-                            color: AppTheme.healthyGreen,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                          ),
-                        ),
-                ),
-              ],
-            ],
+            actions: const [],
           ),
           body: SafeArea(
             child: SingleChildScrollView(
@@ -258,6 +217,96 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _editMode
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Material(
+                                color: cs.onSurface.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(10),
+                                child: InkWell(
+                                  onTap: _cancelEdit,
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 8),
+                                    child: Text(
+                                      s.cancel,
+                                      style: GoogleFonts.inter(
+                                        color: cs.onSurface
+                                            .withValues(alpha: 0.54),
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Material(
+                                color: AppTheme.healthyGreen.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                                child: InkWell(
+                                  onTap: _saving
+                                      ? null
+                                      : () => _saveChanges(profile),
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 8),
+                                    child: _saving
+                                        ? SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: AppTheme.healthyGreen),
+                                          )
+                                        : Text(
+                                            s.save,
+                                            style: GoogleFonts.inter(
+                                              color: AppTheme.healthyGreen,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Material(
+                            color: AppTheme.healthyGreen.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                            child: InkWell(
+                              onTap: () => _enterEditMode(profile),
+                              borderRadius: BorderRadius.circular(10),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 8),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.edit_rounded,
+                                        size: 15, color: AppTheme.healthyGreen),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      s.edit,
+                                      style: GoogleFonts.inter(
+                                        color: AppTheme.healthyGreen,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                  ),
+                  const SizedBox(height: 10),
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(

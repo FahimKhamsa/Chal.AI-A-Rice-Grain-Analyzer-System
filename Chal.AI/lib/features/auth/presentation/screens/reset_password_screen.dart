@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/localization/app_strings.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
@@ -29,15 +30,16 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   }
 
   Future<void> _handleSubmit() async {
+    final s = ref.read(appStringsProvider);
     final newPass = _newPassCtrl.text;
     final confirmPass = _confirmPassCtrl.text;
 
     if (newPass.length < 6) {
-      _showError('Password must be at least 6 characters.');
+      _showError(s.passwordTooShort);
       return;
     }
     if (newPass != confirmPass) {
-      _showError('Passwords do not match.');
+      _showError(s.passwordsDoNotMatch);
       return;
     }
 
@@ -46,7 +48,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       await ref.read(authServiceProvider).updatePassword(newPass);
       if (mounted) context.go(AppRoutes.capture);
     } catch (e) {
-      if (mounted) _showError('Could not update password. Please try again.');
+      if (mounted) _showError(ref.read(appStringsProvider).couldNotUpdatePassword);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -64,6 +66,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(appStringsProvider);
     return Scaffold(
       backgroundColor: const Color(0xFF0B1410),
       appBar: AppBar(
@@ -71,7 +74,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         title: Text(
-          'Set New Password',
+          s.setNewPassword,
           style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
         ),
       ),
@@ -83,15 +86,15 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
             children: [
               const SizedBox(height: 12),
               Text(
-                'Choose a new password for your account.',
+                s.chooseNewPassword,
                 style: GoogleFonts.inter(color: Colors.white54, fontSize: 14, height: 1.5),
               ),
               const SizedBox(height: 32),
 
               _PasswordField(
                 controller: _newPassCtrl,
-                label: 'New password',
-                hint: '••••••••',
+                label: s.newPassword,
+                hint: s.passwordPlaceholder,
                 obscure: _obscureNew,
                 onToggle: () => setState(() => _obscureNew = !_obscureNew),
                 textInputAction: TextInputAction.next,
@@ -100,8 +103,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
               _PasswordField(
                 controller: _confirmPassCtrl,
-                label: 'Confirm new password',
-                hint: '••••••••',
+                label: s.confirmNewPassword,
+                hint: s.passwordPlaceholder,
                 obscure: _obscureConfirm,
                 onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
                 textInputAction: TextInputAction.done,
@@ -127,7 +130,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
                       : Text(
-                          'Update Password',
+                          s.updatePassword,
                           style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700),
                         ),
                 ),

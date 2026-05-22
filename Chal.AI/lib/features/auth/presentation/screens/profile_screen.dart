@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/user_profile.dart';
 import '../providers/profile_provider.dart';
@@ -63,6 +64,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       });
 
   Future<void> _saveChanges(UserProfile current) async {
+    final s = ref.read(appStringsProvider);
     final firstName = _firstNameCtrl.text.trim();
     final lastName = _lastNameCtrl.text.trim();
     final phone = _phoneCtrl.text.trim();
@@ -70,7 +72,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final designation = _designationCtrl.text.trim();
 
     if (firstName.isEmpty || lastName.isEmpty || phone.isEmpty || location.isEmpty) {
-      setState(() => _error = 'Please fill in all required fields.');
+      setState(() => _error = s.fillRequiredFields);
       return;
     }
 
@@ -91,9 +93,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           );
       if (mounted) {
         setState(() => _editMode = false);
+        final successS = ref.read(appStringsProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Profile updated',
+            content: Text(successS.profileUpdated,
                 style: GoogleFonts.inter(color: Colors.white)),
             backgroundColor: AppTheme.healthyGreen,
             behavior: SnackBarBehavior.floating,
@@ -103,7 +106,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         );
       }
     } catch (e) {
-      if (mounted) setState(() => _error = 'Failed to save. Please try again.');
+      if (mounted) setState(() => _error = ref.read(appStringsProvider).failedToSave);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -112,6 +115,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(profileNotifierProvider);
+    final s = ref.watch(appStringsProvider);
 
     return profileAsync.when(
       loading: () => const Scaffold(
@@ -121,7 +125,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       error: (_, __) => Scaffold(
         backgroundColor: const Color(0xFF0B1410),
         body: Center(
-          child: Text('Failed to load profile',
+          child: Text(s.failedToLoadProfile,
               style: GoogleFonts.inter(color: Colors.white54)),
         ),
       ),
@@ -137,7 +141,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             foregroundColor: Colors.white,
             elevation: 0,
             title: Text(
-              'Profile',
+              s.profile,
               style: GoogleFonts.inter(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
@@ -149,7 +153,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 TextButton(
                   onPressed: () => _enterEditMode(profile),
                   child: Text(
-                    'Edit',
+                    s.edit,
                     style: GoogleFonts.inter(
                       color: AppTheme.healthyGreen,
                       fontWeight: FontWeight.w600,
@@ -161,7 +165,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 TextButton(
                   onPressed: _cancelEdit,
                   child: Text(
-                    'Cancel',
+                    s.cancel,
                     style: GoogleFonts.inter(
                         color: Colors.white54, fontSize: 15),
                   ),
@@ -175,7 +179,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white))
                       : Text(
-                          'Save',
+                          s.save,
                           style: GoogleFonts.inter(
                             color: AppTheme.healthyGreen,
                             fontWeight: FontWeight.w600,
@@ -261,50 +265,50 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       children: [
                         if (_editMode) ...[
                           _EditRow(
-                            label: 'First Name',
+                            label: s.firstName,
                             controller: _firstNameCtrl,
                             textInputAction: TextInputAction.next,
                           ),
                           const Divider(color: Colors.white10, height: 1),
                           _EditRow(
-                            label: 'Last Name',
+                            label: s.lastName,
                             controller: _lastNameCtrl,
                             textInputAction: TextInputAction.next,
                           ),
                           const Divider(color: Colors.white10, height: 1),
                           _EditRow(
-                            label: 'Phone',
+                            label: s.phone,
                             controller: _phoneCtrl,
                             keyboardType: TextInputType.phone,
                             textInputAction: TextInputAction.next,
                           ),
                           const Divider(color: Colors.white10, height: 1),
                           _EditRow(
-                            label: 'Location',
+                            label: s.location,
                             controller: _locationCtrl,
                             textInputAction: TextInputAction.next,
                           ),
                           const Divider(color: Colors.white10, height: 1),
                           _EditRow(
-                            label: 'Designation',
+                            label: s.designation,
                             controller: _designationCtrl,
-                            hint: 'Optional',
+                            hint: s.optional,
                             textInputAction: TextInputAction.done,
                           ),
                         ] else ...[
-                          _InfoRow(label: 'First Name', value: profile.firstName),
+                          _InfoRow(label: s.firstName, value: profile.firstName),
                           const Divider(color: Colors.white10, height: 1),
-                          _InfoRow(label: 'Last Name', value: profile.lastName),
+                          _InfoRow(label: s.lastName, value: profile.lastName),
                           const Divider(color: Colors.white10, height: 1),
-                          _InfoRow(label: 'Email', value: profile.email),
+                          _InfoRow(label: s.email, value: profile.email),
                           const Divider(color: Colors.white10, height: 1),
-                          _InfoRow(label: 'Phone', value: profile.phoneNumber),
+                          _InfoRow(label: s.phone, value: profile.phoneNumber),
                           const Divider(color: Colors.white10, height: 1),
-                          _InfoRow(label: 'Location', value: profile.location),
+                          _InfoRow(label: s.location, value: profile.location),
                           if (profile.designation != null) ...[
                             const Divider(color: Colors.white10, height: 1),
                             _InfoRow(
-                                label: 'Designation',
+                                label: s.designation,
                                 value: profile.designation!),
                           ],
                         ],

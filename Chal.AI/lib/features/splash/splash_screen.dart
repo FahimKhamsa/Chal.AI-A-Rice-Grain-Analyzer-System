@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../core/localization/app_strings.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/app_logo.dart';
 import '../auth/presentation/providers/auth_provider.dart';
@@ -48,6 +49,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(appStringsProvider);
     return Scaffold(
       backgroundColor: const Color(0xFF1CB383),
       body: Center(
@@ -61,7 +63,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 const AppLogo(size: 120),
                 const SizedBox(height: 20),
                 Text(
-                  'Chal.AI',
+                  s.appName,
                   style: GoogleFonts.inter(
                     color: Colors.white,
                     fontSize: 34,
@@ -71,7 +73,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'AI-Powered Rice Grain Analysis',
+                  s.appTagline,
                   style: GoogleFonts.inter(
                     color: Colors.white.withValues(alpha: 0.75),
                     fontSize: 14,
@@ -85,8 +87,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   height: 22,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(Colors.white.withValues(alpha: 0.8)),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.white.withValues(alpha: 0.8)),
                   ),
                 ),
               ],

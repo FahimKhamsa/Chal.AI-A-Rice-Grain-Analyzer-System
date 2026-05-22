@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../providers/auth_provider.dart';
@@ -37,20 +38,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   }
 
   Future<void> _handleSignup() async {
+    final s = ref.read(appStringsProvider);
     final email = _emailCtrl.text.trim();
     final password = _passCtrl.text;
     final confirm = _confirmPassCtrl.text;
 
     if (email.isEmpty || password.isEmpty || confirm.isEmpty) {
-      setState(() => _error = 'Please fill in all fields.');
+      setState(() => _error = s.fillAllFields);
       return;
     }
     if (password != confirm) {
-      setState(() => _error = 'Passwords do not match.');
+      setState(() => _error = s.passwordsDoNotMatch);
       return;
     }
     if (password.length < 6) {
-      setState(() => _error = 'Password must be at least 6 characters.');
+      setState(() => _error = s.passwordTooShort);
       return;
     }
 
@@ -76,6 +78,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           },
         );
 
+        final currentS = ref.read(appStringsProvider);
         showDialog<void>(
           context: context,
           barrierDismissible: false,
@@ -86,7 +89,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               title: Text(
-                'Check Your Email',
+                currentS.checkYourEmail,
                 style: GoogleFonts.inter(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
@@ -96,7 +99,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'We sent a verification link to ${_emailCtrl.text.trim()}.\n\nTap the link in your inbox to continue.',
+                    '${currentS.verificationLinkSent} ${_emailCtrl.text.trim()}.\n\n${currentS.tapLinkToContinue}',
                     style: GoogleFonts.inter(
                         color: Colors.white70, fontSize: 14, height: 1.5),
                   ),
@@ -105,7 +108,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       color: AppTheme.healthyGreen, strokeWidth: 2.5),
                   const SizedBox(height: 12),
                   Text(
-                    'Waiting for confirmation…',
+                    currentS.waitingForConfirmation,
                     style: GoogleFonts.inter(
                         color: Colors.white38, fontSize: 13),
                   ),
@@ -116,24 +119,24 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         );
       }
     } catch (e) {
-      if (mounted) setState(() => _error = _friendlyError(e.toString()));
+      if (mounted) setState(() => _error = _friendlyError(e.toString(), s));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  String _friendlyError(String raw) {
+  String _friendlyError(String raw, AppStrings s) {
     if (raw.contains('already registered') ||
         raw.contains('already been registered')) {
-      return 'This email is already registered. Try signing in instead.';
+      return s.emailAlreadyRegistered;
     }
-    if (raw.contains('network'))
-      return 'Network error. Please check your connection.';
-    return 'Something went wrong. Please try again.';
+    if (raw.contains('network')) return s.networkError;
+    return s.somethingWentWrong;
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(appStringsProvider);
     return Scaffold(
       backgroundColor: const Color(0xFF0B1410),
       body: SafeArea(
@@ -146,7 +149,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               const Center(child: AppLogo(size: 50, showText: true)),
               const SizedBox(height: 24),
               Text(
-                'Create Account',
+                s.createAccount,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   color: Colors.white,
@@ -157,23 +160,23 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Join Chal.AI to save your analyses',
+                s.signupSubtitle,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(color: Colors.white54, fontSize: 14),
               ),
               const SizedBox(height: 36),
               _DarkTextField(
                 controller: _emailCtrl,
-                label: 'Email',
-                hint: 'you@example.com',
+                label: s.email,
+                hint: s.emailPlaceholder,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 14),
               _DarkTextField(
                 controller: _passCtrl,
-                label: 'Password',
-                hint: '••••••••',
+                label: s.password,
+                hint: s.passwordPlaceholder,
                 obscureText: _obscurePassword,
                 textInputAction: TextInputAction.next,
                 suffixIcon: IconButton(
@@ -191,8 +194,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               const SizedBox(height: 14),
               _DarkTextField(
                 controller: _confirmPassCtrl,
-                label: 'Confirm Password',
-                hint: '••••••••',
+                label: s.confirmPassword,
+                hint: s.passwordPlaceholder,
                 obscureText: _obscureConfirm,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _handleSignup(),
@@ -246,19 +249,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           height: 20,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white))
-                      : Text('Create Account',
+                      : Text(s.createAccount,
                           style: GoogleFonts.inter(
                               fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
               ),
               const SizedBox(height: 32),
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text('Already have an account? ',
+                Text('${s.alreadyHaveAccount} ',
                     style:
                         GoogleFonts.inter(color: Colors.white38, fontSize: 14)),
                 GestureDetector(
                   onTap: () => context.pop(),
-                  child: Text('Sign In',
+                  child: Text(s.signIn,
                       style: GoogleFonts.inter(
                           color: AppTheme.healthyGreen,
                           fontSize: 14,

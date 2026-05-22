@@ -1,12 +1,10 @@
-// features/capture/presentation/screens/capture_screen.dart
-// Screen A — Complete restructure.
-// Layout: Logo header → Hero capture card → Batch field → Two action buttons
-// No scan lines, no corner brackets, no overlapping overlays.
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/localization/app_strings.dart';
+import '../../../../core/providers/language_provider.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_logo.dart';
@@ -55,6 +53,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   Widget build(BuildContext context) {
     final state = ref.watch(captureProvider);
     final notifier = ref.read(captureProvider.notifier);
+    final s = ref.watch(appStringsProvider);
     final mq = MediaQuery.of(context);
 
     ref.listen(captureProvider, (prev, next) {
@@ -74,7 +73,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       if (next.historySaveError != null && prev?.historySaveError == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not save record: ${next.historySaveError}'),
+            content: Text('${s.couldNotSaveRecord}: ${next.historySaveError}'),
             backgroundColor: AppTheme.brokenRed,
             duration: const Duration(seconds: 6),
             behavior: SnackBarBehavior.floating,
@@ -109,6 +108,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                             _HeroCaptureCard(
                               imageBytes: state.imageBytes,
                               onCameraTap: () => notifier.captureFromCamera(),
+                              s: s,
                             ),
 
                             const SizedBox(height: 20),
@@ -117,6 +117,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                             _BatchSection(
                               controller: _batchController,
                               onChanged: notifier.setBatchName,
+                              s: s,
                             ),
 
                             const SizedBox(height: 20),
@@ -127,19 +128,20 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                               onDemo: () {
                                 final name =
                                     _batchController.text.trim().isEmpty
-                                        ? 'Batch A'
+                                        ? s.batchADefault
                                         : _batchController.text.trim();
                                 context.push(
                                   AppRoutes.analysisResult,
                                   extra: AnalysisResult.mock(batchName: name),
                                 );
                               },
+                              s: s,
                             ),
 
                             const SizedBox(height: 20),
 
                             // ── Tip ──────────────────────────────────
-                            _Tip(),
+                            _Tip(s: s),
 
                             SizedBox(height: mq.padding.bottom + 16),
                           ],
@@ -162,13 +164,13 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
 // ─── Header ──────────────────────────────────────────────────────────────────
 
-class _Header extends StatelessWidget {
+class _Header extends ConsumerWidget {
   const _Header();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 16, 20, 8),
+      padding: const EdgeInsets.fromLTRB(4, 16, 12, 8),
       child: Row(
         children: [
           Builder(
@@ -179,21 +181,81 @@ class _Header extends StatelessWidget {
           ),
           const AppLogo(size: 36, showText: true),
           const Spacer(),
+          const _LangToggleButton(),
         ],
       ),
     );
   }
 }
 
+// ─── Language Toggle Pill ─────────────────────────────────────────────────────
+
+class _LangToggleButton extends ConsumerWidget {
+  const _LangToggleButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(languageProvider);
+    final isBn = lang == 'bn';
+
+    return GestureDetector(
+      onTap: () => ref.read(languageProvider.notifier).toggle(),
+      child: Container(
+        height: 32,
+        decoration: BoxDecoration(
+          color: const Color(0xFF131E17),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withAlpha(30), width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _LangPill(label: 'EN', active: !isBn),
+            _LangPill(label: 'বাং', active: isBn),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LangPill extends StatelessWidget {
+  final String label;
+  final bool active;
+  const _LangPill({required this.label, required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: active ? AppTheme.healthyGreen.withAlpha(220) : Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: active ? Colors.white : Colors.white38,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Hero Capture Card ────────────────────────────────────────────────────────
-// Large tappable card — camera icon when empty, image preview when a photo
-// has been picked. Uses Image.memory so it works on web and native.
 
 class _HeroCaptureCard extends StatelessWidget {
   final Uint8List? imageBytes;
   final VoidCallback onCameraTap;
-  const _HeroCaptureCard(
-      {required this.imageBytes, required this.onCameraTap});
+  final AppStrings s;
+  const _HeroCaptureCard({
+    required this.imageBytes,
+    required this.onCameraTap,
+    required this.s,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -220,7 +282,6 @@ class _HeroCaptureCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   Image.memory(imageBytes!, fit: BoxFit.cover),
-                  // Tap-to-retake overlay
                   Positioned(
                     bottom: 12,
                     right: 12,
@@ -231,15 +292,15 @@ class _HeroCaptureCard extends StatelessWidget {
                         color: Colors.black.withAlpha(160),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.refresh_rounded,
+                          const Icon(Icons.refresh_rounded,
                               color: Colors.white, size: 14),
-                          SizedBox(width: 5),
+                          const SizedBox(width: 5),
                           Text(
-                            'Retake',
-                            style: TextStyle(
+                            s.retake,
+                            style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600),
@@ -253,7 +314,6 @@ class _HeroCaptureCard extends StatelessWidget {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Camera icon in a soft circle
                   Container(
                     width: 72,
                     height: 72,
@@ -272,9 +332,9 @@ class _HeroCaptureCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Tap to capture',
-                    style: TextStyle(
+                  Text(
+                    s.tapToCapture,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -283,7 +343,7 @@ class _HeroCaptureCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Photo will be analyzed by AI',
+                    s.photoAnalyzedByAi,
                     style: TextStyle(
                       color: Colors.white.withAlpha(100),
                       fontSize: 13,
@@ -302,8 +362,12 @@ class _HeroCaptureCard extends StatelessWidget {
 class _BatchSection extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
-  const _BatchSection(
-      {required this.controller, required this.onChanged});
+  final AppStrings s;
+  const _BatchSection({
+    required this.controller,
+    required this.onChanged,
+    required this.s,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -311,7 +375,7 @@ class _BatchSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Batch name',
+          s.batchName,
           style: TextStyle(
             color: Colors.white.withAlpha(130),
             fontSize: 12,
@@ -349,7 +413,7 @@ class _BatchSection extends StatelessWidget {
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     filled: false,
-                    hintText: 'e.g. Batch A, Field 3',
+                    hintText: s.batchNameHint,
                     hintStyle: TextStyle(
                       color: Colors.white.withAlpha(60),
                       fontSize: 14,
@@ -370,13 +434,16 @@ class _BatchSection extends StatelessWidget {
 }
 
 // ─── Action Buttons ───────────────────────────────────────────────────────────
-// Two equal-weight buttons side by side.
 
 class _ActionButtons extends StatelessWidget {
   final VoidCallback onGallery;
   final VoidCallback onDemo;
-  const _ActionButtons(
-      {required this.onGallery, required this.onDemo});
+  final AppStrings s;
+  const _ActionButtons({
+    required this.onGallery,
+    required this.onDemo,
+    required this.s,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -385,7 +452,7 @@ class _ActionButtons extends StatelessWidget {
         Expanded(
           child: _OutlineBtn(
             icon: Icons.photo_library_outlined,
-            label: 'From Gallery',
+            label: s.fromGallery,
             onTap: onGallery,
           ),
         ),
@@ -393,7 +460,7 @@ class _ActionButtons extends StatelessWidget {
         Expanded(
           child: _OutlineBtn(
             icon: Icons.play_arrow_rounded,
-            label: 'Run Demo',
+            label: s.runDemo,
             onTap: onDemo,
             accent: true,
           ),
@@ -458,6 +525,9 @@ class _OutlineBtn extends StatelessWidget {
 // ─── Tip card ─────────────────────────────────────────────────────────────────
 
 class _Tip extends StatelessWidget {
+  final AppStrings s;
+  const _Tip({required this.s});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -476,7 +546,7 @@ class _Tip extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'For best results, place grains on a white surface in good natural light.',
+              s.captureTip,
               style: TextStyle(
                 color: Colors.white.withAlpha(120),
                 fontSize: 12,

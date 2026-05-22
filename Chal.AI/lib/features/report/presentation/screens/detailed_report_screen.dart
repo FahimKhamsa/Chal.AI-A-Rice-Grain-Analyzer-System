@@ -1,26 +1,23 @@
-// features/report/presentation/screens/detailed_report_screen.dart
-// Screen C — Detailed Report View.
-// Shows real backend data only:
-//   Tab 1: Grain Breakdown — pie chart + category cards (5 categories)
-//   Tab 2: Images — morphology and color annotated images from backend
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart' show Share;
 
+import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../analysis/domain/models/analysis_result.dart';
 import '../../../analysis/presentation/widgets/full_screen_image_viewer.dart';
 
-class DetailedReportScreen extends StatefulWidget {
+class DetailedReportScreen extends ConsumerStatefulWidget {
   final AnalysisResult result;
   const DetailedReportScreen({super.key, required this.result});
 
   @override
-  State<DetailedReportScreen> createState() => _DetailedReportScreenState();
+  ConsumerState<DetailedReportScreen> createState() => _DetailedReportScreenState();
 }
 
-class _DetailedReportScreenState extends State<DetailedReportScreen>
+class _DetailedReportScreenState extends ConsumerState<DetailedReportScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
 
@@ -39,15 +36,14 @@ class _DetailedReportScreenState extends State<DetailedReportScreen>
   @override
   Widget build(BuildContext context) {
     final r = widget.result;
+    final s = ref.watch(appStringsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A1F14),
       body: Column(
         children: [
-          // ── Header ──────────────────────────────────────────────────────
-          _ReportHeader(result: r),
+          _ReportHeader(result: r, s: s),
 
-          // ── Tabs ────────────────────────────────────────────────────────
           Container(
             color: const Color(0xFF0F2318),
             child: TabBar(
@@ -56,28 +52,25 @@ class _DetailedReportScreenState extends State<DetailedReportScreen>
               indicatorWeight: 3,
               labelColor: AppTheme.healthyGreen,
               unselectedLabelColor: Colors.white38,
-              labelStyle: const TextStyle(
-                  fontWeight: FontWeight.w700, fontSize: 13),
-              tabs: const [
-                Tab(text: 'Grain Breakdown'),
-                Tab(text: 'Images'),
+              labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              tabs: [
+                Tab(text: s.grainBreakdownTab),
+                Tab(text: s.imagesTab),
               ],
             ),
           ),
 
-          // ── Tab content ──────────────────────────────────────────────────
           Expanded(
             child: TabBarView(
               controller: _tabCtrl,
               children: [
-                _GrainBreakdownTab(result: r),
-                _AnnotatedImagesTab(result: r),
+                _GrainBreakdownTab(result: r, s: s),
+                _AnnotatedImagesTab(result: r, s: s),
               ],
             ),
           ),
 
-          // ── Export Bar ─────────────────────────────────────────────────
-          _ExportBar(result: r),
+          _ExportBar(result: r, s: s),
         ],
       ),
     );
@@ -88,7 +81,8 @@ class _DetailedReportScreenState extends State<DetailedReportScreen>
 
 class _ReportHeader extends StatelessWidget {
   final AnalysisResult result;
-  const _ReportHeader({required this.result});
+  final AppStrings s;
+  const _ReportHeader({required this.result, required this.s});
 
   @override
   Widget build(BuildContext context) {
@@ -126,9 +120,9 @@ class _ReportHeader extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Full Report',
-                          style: TextStyle(
+                        Text(
+                          s.fullReport,
+                          style: const TextStyle(
                               color: Colors.white,
                               fontSize: 20,
                               fontWeight: FontWeight.w700),
@@ -160,10 +154,10 @@ class _ReportHeader extends StatelessWidget {
                               fontSize: 20,
                               fontWeight: FontWeight.w800),
                         ),
-                        const Text(
-                          'Score',
-                          style:
-                              TextStyle(color: Colors.white38, fontSize: 10),
+                        Text(
+                          s.score,
+                          style: const TextStyle(
+                              color: Colors.white38, fontSize: 10),
                         ),
                       ],
                     ),
@@ -179,13 +173,13 @@ class _ReportHeader extends StatelessWidget {
                       color: AppTheme.healthyGreen),
                   const SizedBox(width: 8),
                   _SummaryPill(
-                      label: '${result.counts.total} Grains',
+                      label: '${result.counts.total} ${s.grains}',
                       icon: Icons.grain_rounded,
                       color: AppTheme.integrityBlue),
                   const SizedBox(width: 8),
                   _SummaryPill(
                       label:
-                          '${(result.processingTime.inMilliseconds / 1000).toStringAsFixed(1)}s',
+                          '${(result.processingTime.inMilliseconds / 1000).toStringAsFixed(1)}${s.seconds}',
                       icon: Icons.timer_rounded,
                       color: AppTheme.discoloredAmber),
                 ],
@@ -234,7 +228,8 @@ class _SummaryPill extends StatelessWidget {
 
 class _GrainBreakdownTab extends StatefulWidget {
   final AnalysisResult result;
-  const _GrainBreakdownTab({required this.result});
+  final AppStrings s;
+  const _GrainBreakdownTab({required this.result, required this.s});
 
   @override
   State<_GrainBreakdownTab> createState() => _GrainBreakdownTabState();
@@ -243,17 +238,17 @@ class _GrainBreakdownTab extends StatefulWidget {
 class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
   int _touchedIndex = -1;
 
-  static const _categories = [
-    (label: 'Healthy',     color: AppTheme.healthyGreen,     icon: Icons.check_circle_rounded),
-    (label: '¾ Broken',    color: Color(0xFFFFD600),          icon: Icons.broken_image_rounded),
-    (label: 'Half Broken', color: AppTheme.brokenRed,         icon: Icons.broken_image_outlined),
-    (label: 'Impurity',    color: Color(0xFFDD44FF),           icon: Icons.warning_amber_rounded),
-    (label: 'Discolored',  color: Color(0xFF4488FF),           icon: Icons.palette_rounded),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final s = widget.s;
     final counts = widget.result.counts;
+    final categories = [
+      (label: s.healthy,           color: AppTheme.healthyGreen,  icon: Icons.check_circle_rounded),
+      (label: s.threeQuarterBroken, color: const Color(0xFFFFD600), icon: Icons.broken_image_rounded),
+      (label: s.halfBroken,        color: AppTheme.brokenRed,     icon: Icons.broken_image_outlined),
+      (label: s.impurity,          color: const Color(0xFFDD44FF), icon: Icons.warning_amber_rounded),
+      (label: s.discolored,        color: const Color(0xFF4488FF), icon: Icons.palette_rounded),
+    ];
     final values = [
       counts.healthy.toDouble(),
       counts.threeQuarterBroken.toDouble(),
@@ -264,9 +259,9 @@ class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
     final total = counts.total;
 
     if (total == 0) {
-      return const Center(
-        child: Text('No grains detected',
-            style: TextStyle(color: Colors.white38, fontSize: 15)),
+      return Center(
+        child: Text(s.noGrainsDetected,
+            style: const TextStyle(color: Colors.white38, fontSize: 15)),
       );
     }
 
@@ -276,12 +271,11 @@ class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _SectionTitle(
-            title: 'Grain Breakdown',
-            subtitle: 'Distribution across $total detected grains',
+            title: s.grainBreakdownTitle,
+            subtitle: '${s.distributionAcross} $total ${s.detectedGrains}',
           ),
           const SizedBox(height: 24),
 
-          // ── Pie chart ─────────────────────────────────────────────────
           SizedBox(
             height: 240,
             child: Row(
@@ -299,7 +293,7 @@ class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
                           });
                         },
                       ),
-                      sections: List.generate(_categories.length, (i) {
+                      sections: List.generate(categories.length, (i) {
                         final val = values[i];
                         if (val <= 0) {
                           return PieChartSectionData(
@@ -308,7 +302,7 @@ class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
                         final isTouched = i == _touchedIndex;
                         return PieChartSectionData(
                           value: val,
-                          color: _categories[i].color,
+                          color: categories[i].color,
                           radius: isTouched ? 72 : 60,
                           title:
                               '${(val / total * 100).toStringAsFixed(1)}%',
@@ -326,11 +320,10 @@ class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
                   ),
                 ),
                 const SizedBox(width: 20),
-                // Legend
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: List.generate(_categories.length, (i) {
+                  children: List.generate(categories.length, (i) {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 5),
                       child: Row(
@@ -339,13 +332,13 @@ class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
                             width: 12,
                             height: 12,
                             decoration: BoxDecoration(
-                              color: _categories[i].color,
+                              color: categories[i].color,
                               borderRadius: BorderRadius.circular(3),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            '${_categories[i].label}\n${values[i].toInt()} grains',
+                            '${categories[i].label}\n${values[i].toInt()} ${s.grains}',
                             style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 11,
@@ -362,16 +355,17 @@ class _GrainBreakdownTabState extends State<_GrainBreakdownTab> {
 
           const SizedBox(height: 24),
 
-          // ── Category cards ────────────────────────────────────────────
-          for (int i = 0; i < _categories.length; i++) ...[
+          for (int i = 0; i < categories.length; i++) ...[
             _GrainCategoryCard(
-              label: _categories[i].label,
+              label: categories[i].label,
               count: values[i].toInt(),
               pct: total > 0 ? values[i] / total * 100 : 0.0,
-              color: _categories[i].color,
-              icon: _categories[i].icon,
+              color: categories[i].color,
+              icon: categories[i].icon,
+              ofTotalLabel: s.ofTotal,
+              grainsLabel: s.grains,
             ),
-            if (i < _categories.length - 1) const SizedBox(height: 10),
+            if (i < categories.length - 1) const SizedBox(height: 10),
           ],
         ],
       ),
@@ -385,12 +379,16 @@ class _GrainCategoryCard extends StatelessWidget {
   final double pct;
   final Color color;
   final IconData icon;
+  final String ofTotalLabel;
+  final String grainsLabel;
   const _GrainCategoryCard({
     required this.label,
     required this.count,
     required this.pct,
     required this.color,
     required this.icon,
+    required this.ofTotalLabel,
+    required this.grainsLabel,
   });
 
   @override
@@ -426,7 +424,7 @@ class _GrainCategoryCard extends StatelessWidget {
                             fontSize: 14,
                             fontWeight: FontWeight.w600)),
                     const Spacer(),
-                    Text('$count grains',
+                    Text('$count $grainsLabel',
                         style: TextStyle(
                             color: color,
                             fontSize: 15,
@@ -444,7 +442,7 @@ class _GrainCategoryCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text('${pct.toStringAsFixed(1)}% of total',
+                Text('${pct.toStringAsFixed(1)}% $ofTotalLabel',
                     style: TextStyle(
                         color: color.withAlpha(180), fontSize: 11)),
               ],
@@ -460,7 +458,8 @@ class _GrainCategoryCard extends StatelessWidget {
 
 class _AnnotatedImagesTab extends StatelessWidget {
   final AnalysisResult result;
-  const _AnnotatedImagesTab({required this.result});
+  final AppStrings s;
+  const _AnnotatedImagesTab({required this.result, required this.s});
 
   @override
   Widget build(BuildContext context) {
@@ -468,15 +467,15 @@ class _AnnotatedImagesTab extends StatelessWidget {
     final hasColor = result.colorImageBytes != null;
 
     if (!hasMorph && !hasColor) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.image_not_supported_rounded,
+            const Icon(Icons.image_not_supported_rounded,
                 color: Colors.white24, size: 48),
-            SizedBox(height: 12),
-            Text('No annotated images available',
-                style: TextStyle(color: Colors.white38, fontSize: 14)),
+            const SizedBox(height: 12),
+            Text(s.noAnnotatedImages,
+                style: const TextStyle(color: Colors.white38, fontSize: 14)),
           ],
         ),
       );
@@ -487,20 +486,19 @@ class _AnnotatedImagesTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(
-            title: 'Annotated Images',
-            subtitle: 'AI-generated grain analysis overlays',
+          _SectionTitle(
+            title: s.annotatedImages,
+            subtitle: s.aiGeneratedOverlays,
           ),
           const SizedBox(height: 20),
 
           if (hasMorph) ...[
             _ImageCard(
-              title: 'Morphology Analysis',
-              subtitle:
-                  'Bounding boxes colored by grain size & discoloration',
+              title: s.morphologyAnalysis,
+              subtitle: s.morphologySubtitle,
               imageBytes: result.morphologyImageBytes!,
-              filename:
-                  'chal_ai_${result.batchName.replaceAll(' ', '_')}_morph.jpg',
+              filename: 'chal_ai_${result.batchName.replaceAll(' ', '_')}_morph.jpg',
+              expandLabel: s.expand,
             ),
           ],
 
@@ -508,11 +506,11 @@ class _AnnotatedImagesTab extends StatelessWidget {
 
           if (hasColor) ...[
             _ImageCard(
-              title: 'Color Analysis',
-              subtitle: 'HSV-based discoloration detection overlay',
+              title: s.colorAnalysis,
+              subtitle: s.colorSubtitle,
               imageBytes: result.colorImageBytes!,
-              filename:
-                  'chal_ai_${result.batchName.replaceAll(' ', '_')}_color.jpg',
+              filename: 'chal_ai_${result.batchName.replaceAll(' ', '_')}_color.jpg',
+              expandLabel: s.expand,
             ),
           ],
         ],
@@ -522,13 +520,14 @@ class _AnnotatedImagesTab extends StatelessWidget {
 }
 
 class _ImageCard extends StatelessWidget {
-  final String title, subtitle, filename;
+  final String title, subtitle, filename, expandLabel;
   final Uint8List imageBytes;
   const _ImageCard({
     required this.title,
     required this.subtitle,
     required this.imageBytes,
     required this.filename,
+    required this.expandLabel,
   });
 
   @override
@@ -567,14 +566,14 @@ class _ImageCard extends StatelessWidget {
                       color: Colors.black54,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.fullscreen_rounded,
+                        const Icon(Icons.fullscreen_rounded,
                             color: Colors.white, size: 14),
-                        SizedBox(width: 5),
-                        Text('Expand',
-                            style: TextStyle(
+                        const SizedBox(width: 5),
+                        Text(expandLabel,
+                            style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600)),
@@ -619,7 +618,8 @@ class _SectionTitle extends StatelessWidget {
 
 class _ExportBar extends StatelessWidget {
   final AnalysisResult result;
-  const _ExportBar({required this.result});
+  final AppStrings s;
+  const _ExportBar({required this.result, required this.s});
 
   @override
   Widget build(BuildContext context) {
@@ -633,7 +633,7 @@ class _ExportBar extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: _shareText,
               icon: const Icon(Icons.share_rounded),
-              label: const Text('Share'),
+              label: Text(s.share),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppTheme.healthyGreen,
                 side: BorderSide(
@@ -650,7 +650,7 @@ class _ExportBar extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: _shareText,
               icon: const Icon(Icons.picture_as_pdf_rounded),
-              label: const Text('Export PDF'),
+              label: Text(s.exportPdf),
               style: FilledButton.styleFrom(
                 backgroundColor: AppTheme.healthyGreen,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -667,22 +667,22 @@ class _ExportBar extends StatelessWidget {
   void _shareText() {
     final r = result;
     final text = '''
-Chal.AI Analysis Report
-Batch: ${r.batchName}
-Date: ${r.analyzedAt.day}/${r.analyzedAt.month}/${r.analyzedAt.year}
+${s.reportHeader}
+${s.batch}: ${r.batchName}
+${s.date}: ${r.analyzedAt.day}/${r.analyzedAt.month}/${r.analyzedAt.year}
 
-Integrity Score: ${r.integrityScore.toStringAsFixed(1)}%
-Total Grains: ${r.counts.total}
+${s.integrityScore}: ${r.integrityScore.toStringAsFixed(1)}%
+${s.totalGrains}: ${r.counts.total}
 
-Grain Breakdown:
-  • Healthy: ${r.counts.healthy} (${r.counts.healthyPct.toStringAsFixed(1)}%)
-  • ¾ Broken: ${r.counts.threeQuarterBroken} (${r.counts.threeQuarterBrokenPct.toStringAsFixed(1)}%)
-  • Half Broken: ${r.counts.halfBroken} (${r.counts.halfBrokenPct.toStringAsFixed(1)}%)
-  • Impurity: ${r.counts.impurity} (${r.counts.impurityPct.toStringAsFixed(1)}%)
-  • Discolored: ${r.counts.discolored} (${r.counts.discoloredPct.toStringAsFixed(1)}%)
+${s.grainBreakdown}:
+  • ${s.healthy}: ${r.counts.healthy} (${r.counts.healthyPct.toStringAsFixed(1)}%)
+  • ${s.threeQuarterBroken}: ${r.counts.threeQuarterBroken} (${r.counts.threeQuarterBrokenPct.toStringAsFixed(1)}%)
+  • ${s.halfBroken}: ${r.counts.halfBroken} (${r.counts.halfBrokenPct.toStringAsFixed(1)}%)
+  • ${s.impurity}: ${r.counts.impurity} (${r.counts.impurityPct.toStringAsFixed(1)}%)
+  • ${s.discolored}: ${r.counts.discolored} (${r.counts.discoloredPct.toStringAsFixed(1)}%)
 
-Processing Time: ${(r.processingTime.inMilliseconds / 1000).toStringAsFixed(2)}s
-Generated by Chal.AI 🌾
+${s.processingTime}: ${(r.processingTime.inMilliseconds / 1000).toStringAsFixed(2)}${s.seconds}
+${s.generatedBy}
 ''';
     Share.share(text);
   }

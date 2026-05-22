@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../localization/app_strings.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
@@ -13,6 +14,7 @@ class AppSidebar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(appStringsProvider);
     final user = ref.watch(currentUserProvider);
     final email = user?.email ?? '';
     final profile = ref.watch(profileNotifierProvider).valueOrNull;
@@ -43,14 +45,14 @@ class AppSidebar extends ConsumerWidget {
             borderRadius: BorderRadius.circular(16),
           ),
           title: Text(
-            'Sign Out?',
+            s.signOutConfirmTitle,
             style: GoogleFonts.inter(
               color: Colors.white,
               fontWeight: FontWeight.w700,
             ),
           ),
           content: Text(
-            'Are you sure you want to sign out?',
+            s.signOutConfirmMessage,
             style: GoogleFonts.inter(
               color: Colors.white70,
               fontSize: 14,
@@ -61,14 +63,14 @@ class AppSidebar extends ConsumerWidget {
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: Text(
-                'No',
+                s.cancel,
                 style: GoogleFonts.inter(color: Colors.white54),
               ),
             ),
             TextButton(
               onPressed: () => authService.signOut(),
               child: Text(
-                'Yes',
+                s.signOut,
                 style: GoogleFonts.inter(
                   color: AppTheme.brokenRed,
                   fontWeight: FontWeight.w600,
@@ -131,42 +133,39 @@ class AppSidebar extends ConsumerWidget {
             ),
 
             const Divider(color: Colors.white10, height: 1),
-
             const SizedBox(height: 8),
 
-            // Nav items
             _SidebarItem(
               icon: Icons.person_outline_rounded,
-              label: 'Profile',
+              label: s.profile,
               isActive: currentLocation == AppRoutes.profile,
               onTap: () => navigate(AppRoutes.profile),
             ),
             _SidebarItem(
               icon: Icons.camera_alt_outlined,
-              label: 'Analyze',
+              label: s.home,
               isActive: currentLocation == AppRoutes.capture,
               onTap: () => navigate(AppRoutes.capture, replace: true),
             ),
             _SidebarItem(
               icon: Icons.history_rounded,
-              label: 'History',
+              label: s.history,
               isActive: currentLocation == AppRoutes.history,
               onTap: () => navigate(AppRoutes.history),
             ),
             _SidebarItem(
               icon: Icons.settings_outlined,
-              label: 'Settings',
+              label: s.settings,
               isActive: currentLocation == AppRoutes.settings,
               onTap: () => navigate(AppRoutes.settings),
             ),
 
             const Spacer(),
-
             const Divider(color: Colors.white10, height: 1),
 
             _SidebarItem(
               icon: Icons.logout_rounded,
-              label: 'Sign Out',
+              label: s.signOut,
               color: AppTheme.brokenRed,
               onTap: confirmSignOut,
             ),

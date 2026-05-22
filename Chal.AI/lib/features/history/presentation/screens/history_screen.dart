@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/localization/app_strings.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/analysis_record.dart';
@@ -15,6 +16,7 @@ class HistoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(historyProvider);
+    final s = ref.watch(appStringsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B1410),
@@ -22,7 +24,7 @@ class HistoryScreen extends ConsumerWidget {
         backgroundColor: const Color(0xFF0B1410),
         foregroundColor: Colors.white,
         title: Text(
-          'Analysis History',
+          s.analysisHistory,
           style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
         ),
         centerTitle: true,
@@ -36,11 +38,11 @@ class HistoryScreen extends ConsumerWidget {
             children: [
               const Icon(Icons.error_outline_rounded, color: Colors.white38, size: 48),
               const SizedBox(height: 12),
-              Text('Failed to load history', style: GoogleFonts.inter(color: Colors.white54, fontSize: 14)),
+              Text(s.failedToLoadHistory, style: GoogleFonts.inter(color: Colors.white54, fontSize: 14)),
               const SizedBox(height: 8),
               TextButton(
                 onPressed: () => ref.invalidate(historyProvider),
-                child: Text('Retry', style: GoogleFonts.inter(color: AppTheme.healthyGreen)),
+                child: Text(s.retry, style: GoogleFonts.inter(color: AppTheme.healthyGreen)),
               ),
             ],
           ),
@@ -53,9 +55,9 @@ class HistoryScreen extends ConsumerWidget {
                 children: [
                   const Icon(Icons.history_rounded, color: Colors.white24, size: 64),
                   const SizedBox(height: 16),
-                  Text('No analyses yet', style: GoogleFonts.inter(color: Colors.white38, fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text(s.noAnalysesYet, style: GoogleFonts.inter(color: Colors.white38, fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  Text('Your saved analyses will appear here', style: GoogleFonts.inter(color: Colors.white24, fontSize: 13)),
+                  Text(s.savedAnalysesWillAppear, style: GoogleFonts.inter(color: Colors.white24, fontSize: 13)),
                 ],
               ),
             );
@@ -119,6 +121,7 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(appStringsProvider);
     final score = widget.record.integrityScore;
     final scoreColor = _scoreColor(score);
     final dateStr = DateFormat('MMM d, yyyy · h:mm a').format(widget.record.createdAt.toLocal());
@@ -137,7 +140,6 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
           ),
           child: Row(
             children: [
-              // Score badge
               Container(
                 width: 52,
                 height: 52,
@@ -158,7 +160,6 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
                 ),
               ),
               const SizedBox(width: 14),
-              // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -169,7 +170,9 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      widget.record.detectedVariety.isNotEmpty ? widget.record.detectedVariety : 'Unknown variety',
+                      widget.record.detectedVariety.isNotEmpty
+                          ? widget.record.detectedVariety
+                          : s.unknownVariety,
                       style: GoogleFonts.inter(color: AppTheme.healthyGreen, fontSize: 12, fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 3),
@@ -180,7 +183,6 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
                   ],
                 ),
               ),
-              // Loading indicator or chevron
               if (_loading)
                 const SizedBox(
                   width: 20,
@@ -191,7 +193,7 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
                 const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 20),
               IconButton(
                 icon: const Icon(Icons.delete_outline_rounded, color: Colors.white24, size: 20),
-                onPressed: () => _confirmDelete(context),
+                onPressed: () => _confirmDelete(context, s),
               ),
             ],
           ),
@@ -200,22 +202,22 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
     );
   }
 
-  void _confirmDelete(BuildContext context) {
+  void _confirmDelete(BuildContext context, AppStrings s) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF131E17),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Delete record?', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700)),
-        content: Text('This analysis will be permanently removed.', style: GoogleFonts.inter(color: Colors.white54, fontSize: 14)),
+        title: Text(s.deleteRecord, style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700)),
+        content: Text(s.deleteConfirmMessage, style: GoogleFonts.inter(color: Colors.white54, fontSize: 14)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: GoogleFonts.inter(color: Colors.white54)),
+            child: Text(s.cancel, style: GoogleFonts.inter(color: Colors.white54)),
           ),
           TextButton(
             onPressed: () { Navigator.pop(context); widget.onDelete(); },
-            child: Text('Delete', style: GoogleFonts.inter(color: AppTheme.brokenRed, fontWeight: FontWeight.w600)),
+            child: Text(s.delete, style: GoogleFonts.inter(color: AppTheme.brokenRed, fontWeight: FontWeight.w600)),
           ),
         ],
       ),

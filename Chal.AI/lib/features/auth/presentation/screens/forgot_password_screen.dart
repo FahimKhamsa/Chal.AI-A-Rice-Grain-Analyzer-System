@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../providers/auth_provider.dart';
@@ -27,12 +28,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Future<void> _handleSend() async {
+    final s = ref.read(appStringsProvider);
     final email = _emailCtrl.text.trim();
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please enter your email address.',
-              style: GoogleFonts.inter()),
+          content: Text(s.enterEmailAddress, style: GoogleFonts.inter()),
           backgroundColor: AppTheme.brokenRed,
           behavior: SnackBarBehavior.floating,
         ),
@@ -42,17 +43,18 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     setState(() => _loading = true);
     try {
       await ref.read(authServiceProvider).sendPasswordResetEmail(email);
-      if (mounted)
+      if (mounted) {
         setState(() {
           _sent = true;
           _sentEmail = email;
         });
+      }
     } catch (e) {
       if (mounted) {
+        final errS = ref.read(appStringsProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not send reset email. Please try again.',
-                style: GoogleFonts.inter()),
+            content: Text(errS.couldNotSendResetEmail, style: GoogleFonts.inter()),
             backgroundColor: AppTheme.brokenRed,
             behavior: SnackBarBehavior.floating,
           ),
@@ -65,6 +67,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(appStringsProvider);
     return Scaffold(
       backgroundColor: const Color(0xFF0B1410),
       appBar: AppBar(
@@ -76,11 +79,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: _sent
-              ? _SuccessView(email: _sentEmail!)
+              ? _SuccessView(email: _sentEmail!, s: s)
               : _FormView(
                   emailCtrl: _emailCtrl,
                   loading: _loading,
                   onSend: _handleSend,
+                  s: s,
                 ),
         ),
       ),
@@ -92,9 +96,14 @@ class _FormView extends StatelessWidget {
   final TextEditingController emailCtrl;
   final bool loading;
   final VoidCallback onSend;
+  final AppStrings s;
 
-  const _FormView(
-      {required this.emailCtrl, required this.loading, required this.onSend});
+  const _FormView({
+    required this.emailCtrl,
+    required this.loading,
+    required this.onSend,
+    required this.s,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +114,7 @@ class _FormView extends StatelessWidget {
         const Center(child: AppLogo(size: 50, showText: true)),
         const SizedBox(height: 24),
         Text(
-          'Reset your password',
+          s.resetYourPassword,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
             color: Colors.white,
@@ -115,13 +124,13 @@ class _FormView extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          "Enter your email and we'll send you a link to reset your password.",
+          s.forgotPasswordSubtitle,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
               color: Colors.white54, fontSize: 14, height: 1.5),
         ),
         const SizedBox(height: 36),
-        Text('Email',
+        Text(s.email,
             style: GoogleFonts.inter(
                 color: Colors.white60,
                 fontSize: 13,
@@ -134,7 +143,7 @@ class _FormView extends StatelessWidget {
           onFieldSubmitted: (_) => onSend(),
           style: GoogleFonts.inter(color: Colors.white, fontSize: 15),
           decoration: InputDecoration(
-            hintText: 'you@example.com',
+            hintText: s.emailPlaceholder,
             hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 15),
             filled: true,
             fillColor: const Color(0xFF131E17),
@@ -175,7 +184,7 @@ class _FormView extends StatelessWidget {
                     height: 20,
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white))
-                : Text('Send reset link',
+                : Text(s.sendResetLink,
                     style: GoogleFonts.inter(
                         fontSize: 15, fontWeight: FontWeight.w700)),
           ),
@@ -187,7 +196,8 @@ class _FormView extends StatelessWidget {
 
 class _SuccessView extends StatelessWidget {
   final String email;
-  const _SuccessView({required this.email});
+  final AppStrings s;
+  const _SuccessView({required this.email, required this.s});
 
   @override
   Widget build(BuildContext context) {
@@ -210,14 +220,14 @@ class _SuccessView extends StatelessWidget {
         ),
         const SizedBox(height: 28),
         Text(
-          'Check your inbox',
+          s.checkYourInbox,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
               color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
         Text(
-          "We've sent a password reset link to\n$email",
+          '${s.resetLinkSentTo}\n$email',
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
               color: Colors.white54, fontSize: 14, height: 1.6),
@@ -236,7 +246,7 @@ class _SuccessView extends StatelessWidget {
               ),
               elevation: 0,
             ),
-            child: Text('Back to Login',
+            child: Text(s.backToLogin,
                 style: GoogleFonts.inter(
                     fontSize: 15, fontWeight: FontWeight.w600)),
           ),

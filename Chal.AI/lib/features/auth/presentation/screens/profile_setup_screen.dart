@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../../domain/models/user_profile.dart';
@@ -36,6 +37,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   }
 
   Future<void> _handleSubmit() async {
+    final s = ref.read(appStringsProvider);
     final firstName = _firstNameCtrl.text.trim();
     final lastName = _lastNameCtrl.text.trim();
     final phone = _phoneCtrl.text.trim();
@@ -43,7 +45,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     final designation = _designationCtrl.text.trim();
 
     if (firstName.isEmpty || lastName.isEmpty || phone.isEmpty || location.isEmpty) {
-      setState(() => _error = 'Please fill in all required fields.');
+      setState(() => _error = s.fillRequiredFields);
       return;
     }
 
@@ -67,10 +69,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               email: user.email ?? '',
             ),
           );
-      // Router redirect handles navigation once profileNotifierProvider updates
     } catch (e) {
       if (mounted) {
-        setState(() => _error = 'Something went wrong. Please try again.');
+        setState(() => _error = ref.read(appStringsProvider).somethingWentWrong);
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -79,6 +80,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(appStringsProvider);
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -93,7 +95,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 const Center(child: AppLogo(size: 50, showText: true)),
                 const SizedBox(height: 24),
                 Text(
-                  'Complete Your Profile',
+                  s.completeYourProfile,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
                     color: Colors.white,
@@ -104,7 +106,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Tell us a little about yourself',
+                  s.tellUsAboutYourself,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(color: Colors.white54, fontSize: 14),
                 ),
@@ -114,8 +116,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     Expanded(
                       child: _DarkTextField(
                         controller: _firstNameCtrl,
-                        label: 'First Name',
-                        hint: 'John',
+                        label: s.firstName,
+                        hint: s.firstNameHint,
                         textInputAction: TextInputAction.next,
                       ),
                     ),
@@ -123,8 +125,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     Expanded(
                       child: _DarkTextField(
                         controller: _lastNameCtrl,
-                        label: 'Last Name',
-                        hint: 'Doe',
+                        label: s.lastName,
+                        hint: s.lastNameHint,
                         textInputAction: TextInputAction.next,
                       ),
                     ),
@@ -133,23 +135,23 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 const SizedBox(height: 14),
                 _DarkTextField(
                   controller: _phoneCtrl,
-                  label: 'Phone Number',
-                  hint: '+1 234 567 8900',
+                  label: s.phoneNumber,
+                  hint: s.phoneHint,
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 14),
                 _DarkTextField(
                   controller: _locationCtrl,
-                  label: 'Location',
-                  hint: 'City, Country',
+                  label: s.location,
+                  hint: s.locationHint,
                   textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 14),
                 _DarkTextField(
                   controller: _designationCtrl,
-                  label: 'Designation (Optional)',
-                  hint: 'e.g. Farmer, Researcher',
+                  label: s.designation,
+                  hint: s.designationHint,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _handleSubmit(),
                 ),
@@ -192,7 +194,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white))
                         : Text(
-                            'Continue',
+                            s.continueBtn,
                             style: GoogleFonts.inter(
                                 fontSize: 15, fontWeight: FontWeight.w700),
                           ),

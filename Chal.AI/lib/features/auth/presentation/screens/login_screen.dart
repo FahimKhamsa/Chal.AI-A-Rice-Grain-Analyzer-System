@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/localization/app_strings.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_logo.dart';
@@ -30,10 +31,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handleEmailLogin() async {
+    final s = ref.read(appStringsProvider);
     final email = _emailCtrl.text.trim();
     final password = _passCtrl.text;
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _error = 'Please enter your email and password.');
+      setState(() => _error = s.enterEmailAndPassword);
       return;
     }
     setState(() {
@@ -46,22 +48,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           .signIn(email: email, password: password);
       if (mounted) context.go(AppRoutes.capture);
     } catch (e) {
-      if (mounted) setState(() => _error = _friendlyError(e.toString()));
+      if (mounted) setState(() => _error = _friendlyError(e.toString(), s));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  String _friendlyError(String raw) {
-    if (raw.contains('Invalid login credentials'))
-      return 'Invalid email or password.';
-    if (raw.contains('network'))
-      return 'Network error. Please check your connection.';
-    return 'Something went wrong. Please try again.';
+  String _friendlyError(String raw, AppStrings s) {
+    if (raw.contains('Invalid login credentials')) return s.invalidEmailOrPassword;
+    if (raw.contains('network')) return s.networkError;
+    return s.somethingWentWrong;
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(appStringsProvider);
     return Scaffold(
       backgroundColor: const Color(0xFF0B1410),
       body: SafeArea(
@@ -75,7 +76,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 16),
               Center(
                 child: Text(
-                  'Sign in to continue',
+                  s.signInToContinue,
                   style: GoogleFonts.inter(
                     color: Colors.white54,
                     fontSize: 14,
@@ -86,16 +87,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 40),
               _DarkTextField(
                 controller: _emailCtrl,
-                label: 'Email',
-                hint: 'you@example.com',
+                label: s.email,
+                hint: s.emailPlaceholder,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 14),
               _DarkTextField(
                 controller: _passCtrl,
-                label: 'Password',
-                hint: '••••••••',
+                label: s.password,
+                hint: s.passwordPlaceholder,
                 obscureText: _obscurePassword,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _handleEmailLogin(),
@@ -149,7 +150,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           height: 20,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white))
-                      : Text('Sign In',
+                      : Text(s.signIn,
                           style: GoogleFonts.inter(
                               fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
@@ -159,7 +160,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: TextButton(
                   onPressed: () => context.push(AppRoutes.forgotPassword),
                   child: Text(
-                    'Forgot password?',
+                    s.forgotPassword,
                     style: GoogleFonts.inter(
                         color: AppTheme.healthyGreen, fontSize: 13),
                   ),
@@ -167,12 +168,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 8),
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text("Don't have an account? ",
+                Text('${s.dontHaveAccount} ',
                     style:
                         GoogleFonts.inter(color: Colors.white38, fontSize: 14)),
                 GestureDetector(
                   onTap: () => context.push(AppRoutes.signup),
-                  child: Text('Sign Up',
+                  child: Text(s.signUp,
                       style: GoogleFonts.inter(
                           color: AppTheme.healthyGreen,
                           fontSize: 14,

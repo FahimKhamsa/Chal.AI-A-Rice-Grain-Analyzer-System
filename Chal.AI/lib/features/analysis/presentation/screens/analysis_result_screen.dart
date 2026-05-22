@@ -1,8 +1,9 @@
-// features/analysis/presentation/screens/analysis_result_screen.dart
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/localization/app_strings.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/image_download.dart';
@@ -11,15 +12,15 @@ import '../widgets/full_screen_image_viewer.dart';
 import '../widgets/integrity_score_gauge.dart';
 import '../widgets/stat_chip.dart';
 
-class AnalysisResultScreen extends StatefulWidget {
+class AnalysisResultScreen extends ConsumerStatefulWidget {
   final AnalysisResult result;
   const AnalysisResultScreen({super.key, required this.result});
 
   @override
-  State<AnalysisResultScreen> createState() => _AnalysisResultScreenState();
+  ConsumerState<AnalysisResultScreen> createState() => _AnalysisResultScreenState();
 }
 
-class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
+class _AnalysisResultScreenState extends ConsumerState<AnalysisResultScreen> {
   final _sheetCtrl = DraggableScrollableController();
   double _imageOpacity = 1.0;
 
@@ -180,6 +181,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
               return _SummarySheet(
                 result: result,
                 scrollCtrl: scrollCtrl,
+                s: ref.watch(appStringsProvider),
               );
             },
           ),
@@ -268,8 +270,12 @@ class _ShareButton extends StatelessWidget {
 class _SummarySheet extends StatelessWidget {
   final AnalysisResult result;
   final ScrollController scrollCtrl;
-  const _SummarySheet(
-      {required this.result, required this.scrollCtrl});
+  final AppStrings s;
+  const _SummarySheet({
+    required this.result,
+    required this.scrollCtrl,
+    required this.s,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -314,7 +320,7 @@ class _SummarySheet extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Integrity Score',
+                      s.integrityScore.toUpperCase(),
                       style: theme.textTheme.titleSmall?.copyWith(
                           color: Colors.white60,
                           letterSpacing: 1.0,
@@ -347,7 +353,7 @@ class _SummarySheet extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _getIntegrityLabel(result.integrityScore),
+                      _getIntegrityLabel(result.integrityScore, s),
                       style: TextStyle(
                         color: _getIntegrityColor(result.integrityScore),
                         fontSize: 13,
@@ -364,13 +370,13 @@ class _SummarySheet extends StatelessWidget {
           const SizedBox(height: 20),
 
           // ── Variety Detected ─────────────────────────────────────────
-          _VarietyCard(result: result),
+          _VarietyCard(result: result, s: s),
 
           const SizedBox(height: 20),
 
           // ── Grain Count Stats ────────────────────────────────────────
           Text(
-            'GRAIN BREAKDOWN',
+            s.grainBreakdown,
             style: theme.textTheme.labelMedium?.copyWith(
                 letterSpacing: 1.2, color: Colors.white38, fontSize: 11),
           ),
@@ -379,7 +385,7 @@ class _SummarySheet extends StatelessWidget {
             children: [
               Expanded(
                 child: StatChip(
-                  label: 'Healthy',
+                  label: s.healthy,
                   value: result.counts.healthy.toString(),
                   pct: result.counts.healthyPct,
                   color: AppTheme.healthyGreen,
@@ -389,7 +395,7 @@ class _SummarySheet extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: StatChip(
-                  label: '¾ Broken',
+                  label: s.threeQuarterBroken,
                   value: result.counts.threeQuarterBroken.toString(),
                   pct: result.counts.threeQuarterBrokenPct,
                   color: const Color(0xFFFFD600),
@@ -399,7 +405,7 @@ class _SummarySheet extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: StatChip(
-                  label: 'Half Broken',
+                  label: s.halfBroken,
                   value: result.counts.halfBroken.toString(),
                   pct: result.counts.halfBrokenPct,
                   color: AppTheme.brokenRed,
@@ -413,7 +419,7 @@ class _SummarySheet extends StatelessWidget {
             children: [
               Expanded(
                 child: StatChip(
-                  label: 'Impurity',
+                  label: s.impurity,
                   value: result.counts.impurity.toString(),
                   pct: result.counts.impurityPct,
                   color: const Color(0xFFDD44FF),
@@ -423,7 +429,7 @@ class _SummarySheet extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: StatChip(
-                  label: 'Discolored',
+                  label: s.discolored,
                   value: result.counts.discolored.toString(),
                   pct: result.counts.discoloredPct,
                   color: const Color(0xFF4488FF),
@@ -439,22 +445,20 @@ class _SummarySheet extends StatelessWidget {
           Row(
             children: [
               _InfoTile(
-                label: 'Total Grains',
+                label: s.totalGrains,
                 value: result.counts.total.toString(),
                 icon: Icons.grain_rounded,
               ),
               const SizedBox(width: 12),
               _InfoTile(
-                label: 'Processed In',
-                value:
-                    '${result.processingTime.inMilliseconds / 1000}s',
+                label: s.processedIn,
+                value: '${result.processingTime.inMilliseconds / 1000}${s.seconds}',
                 icon: Icons.timer_rounded,
               ),
               const SizedBox(width: 12),
               _InfoTile(
-                label: 'Analyzed On',
-                value:
-                    '${result.analyzedAt.day}/${result.analyzedAt.month}',
+                label: s.analyzedOn,
+                value: '${result.analyzedAt.day}/${result.analyzedAt.month}',
                 icon: Icons.calendar_today_rounded,
               ),
             ],
@@ -467,7 +471,7 @@ class _SummarySheet extends StatelessWidget {
             onPressed: () =>
                 context.push(AppRoutes.report, extra: result),
             icon: const Icon(Icons.analytics_rounded),
-            label: const Text('View Full Report'),
+            label: Text(s.viewFullReport),
             style: FilledButton.styleFrom(
               minimumSize: const Size(double.infinity, 56),
               backgroundColor: AppTheme.healthyGreen,
@@ -480,11 +484,11 @@ class _SummarySheet extends StatelessWidget {
     );
   }
 
-  String _getIntegrityLabel(double score) {
-    if (score >= 85) return '⭐ Excellent Quality';
-    if (score >= 70) return '✅ Good Quality';
-    if (score >= 55) return '⚠️ Fair Quality';
-    return '❌ Poor Quality';
+  String _getIntegrityLabel(double score, AppStrings s) {
+    if (score >= 85) return s.excellentQuality;
+    if (score >= 70) return s.goodQuality;
+    if (score >= 55) return s.fairQuality;
+    return s.poorQuality;
   }
 
   Color _getIntegrityColor(double score) {
@@ -497,7 +501,8 @@ class _SummarySheet extends StatelessWidget {
 
 class _VarietyCard extends StatelessWidget {
   final AnalysisResult result;
-  const _VarietyCard({required this.result});
+  final AppStrings s;
+  const _VarietyCard({required this.result, required this.s});
 
   @override
   Widget build(BuildContext context) {
@@ -533,9 +538,9 @@ class _VarietyCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'VARIETY DETECTED',
-                  style: TextStyle(
+                Text(
+                  s.varietyDetected,
+                  style: const TextStyle(
                       color: Colors.white38,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
@@ -561,9 +566,9 @@ class _VarietyCard extends StatelessWidget {
                     fontSize: 22,
                     fontWeight: FontWeight.w800),
               ),
-              const Text(
-                'confidence',
-                style: TextStyle(color: Colors.white38, fontSize: 11),
+              Text(
+                s.confidence,
+                style: const TextStyle(color: Colors.white38, fontSize: 11),
               ),
             ],
           ),
@@ -575,7 +580,7 @@ class _VarietyCard extends StatelessWidget {
 
 // ── Image overlay: expand + download buttons ──────────────────────────────────
 
-class _ImageActionButtons extends StatefulWidget {
+class _ImageActionButtons extends ConsumerStatefulWidget {
   final Uint8List bytes;
   final String filename;
   final VoidCallback onExpand;
@@ -586,10 +591,10 @@ class _ImageActionButtons extends StatefulWidget {
   });
 
   @override
-  State<_ImageActionButtons> createState() => _ImageActionButtonsState();
+  ConsumerState<_ImageActionButtons> createState() => _ImageActionButtonsState();
 }
 
-class _ImageActionButtonsState extends State<_ImageActionButtons> {
+class _ImageActionButtonsState extends ConsumerState<_ImageActionButtons> {
   bool _downloading = false;
 
   Future<void> _download() async {
@@ -603,20 +608,19 @@ class _ImageActionButtonsState extends State<_ImageActionButtons> {
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(appStringsProvider);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Expand
         _PillBtn(
           icon: Icons.fullscreen_rounded,
-          label: 'View',
+          label: s.view,
           onTap: widget.onExpand,
         ),
         const SizedBox(width: 8),
-        // Download
         _PillBtn(
           icon: _downloading ? null : Icons.download_rounded,
-          label: _downloading ? 'Saving…' : 'Download',
+          label: _downloading ? s.saving : s.download,
           onTap: _downloading ? null : _download,
           loading: _downloading,
           accent: true,

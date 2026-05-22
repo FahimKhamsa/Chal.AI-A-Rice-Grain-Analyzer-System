@@ -43,12 +43,14 @@ class AnalysisRecord {
 
   factory AnalysisRecord.fromJson(Map<String, dynamic> json) {
     return AnalysisRecord(
-      id: json['id'] as String,
+      id: json['id'] as String? ?? '',
       userId: json['user_id'] as String? ?? '',
       batchName: json['batch_name'] as String? ?? '',
-      analyzedAt: DateTime.parse(json['analyzed_at'] as String),
+      analyzedAt: json['analyzed_at'] != null
+          ? DateTime.parse(json['analyzed_at'] as String)
+          : DateTime.now(),
       processingTimeMs: (json['processing_time_ms'] as num? ?? 0).toInt(),
-      integrityScore: (json['integrity_score'] as num).toDouble(),
+      integrityScore: (json['integrity_score'] as num? ?? 0).toDouble(),
       counts: Map<String, dynamic>.from(json['counts'] as Map? ?? {}),
       morphologyReport:
           Map<String, dynamic>.from(json['morphology_report'] as Map? ?? {}),

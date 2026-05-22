@@ -227,7 +227,7 @@ class AppStrings {
       isBn ? 'কোনো চিহ্নিত ছবি উপলব্ধ নেই' : 'No annotated images available';
   String get expand => isBn ? 'বড় করুন' : 'Expand';
   String get share => isBn ? 'শেয়ার করুন' : 'Share';
-  String get exportPdf => isBn ? 'PDF এক্সপোর্ট' : 'Export PDF';
+  String get downloadPdf => isBn ? 'PDF ডাউনলোড' : 'Download PDF';
   String get reportHeader =>
       isBn ? 'Chal.AI বিশ্লেষণ রিপোর্ট' : 'Chal.AI Analysis Report';
   String get batch => isBn ? 'ব্যাচ' : 'Batch';

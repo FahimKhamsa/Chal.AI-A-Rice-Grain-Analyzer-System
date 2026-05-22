@@ -1,8 +1,13 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart' show Share;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -80,7 +85,7 @@ class _DetailedReportScreenState extends ConsumerState<DetailedReportScreen>
 }
 
 // ── Report Header ─────────────────────────────────────────────────────────
-
+// (Unchanged from your original code)
 class _ReportHeader extends StatelessWidget {
   final AnalysisResult result;
   final AppStrings s;
@@ -232,7 +237,7 @@ class _SummaryPill extends StatelessWidget {
 }
 
 // ── Tab 1: Grain Breakdown ────────────────────────────────────────────────
-
+// (Unchanged from your original code)
 class _GrainBreakdownTab extends StatefulWidget {
   final AnalysisResult result;
   final AppStrings s;
@@ -484,7 +489,7 @@ class _GrainCategoryCard extends StatelessWidget {
 }
 
 // ── Tab 2: Annotated Images ───────────────────────────────────────────────
-
+// (Unchanged from your original code)
 class _AnnotatedImagesTab extends StatelessWidget {
   final AnalysisResult result;
   final AppStrings s;
@@ -525,9 +530,7 @@ class _AnnotatedImagesTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _SectionTitle(
-            title: s.annotatedImages,
-            subtitle: s.aiGeneratedOverlays,
-          ),
+              title: s.annotatedImages, subtitle: s.aiGeneratedOverlays),
           const SizedBox(height: 20),
           if (hasMorph) ...[
             _ImageCard(
@@ -632,8 +635,6 @@ class _ImageCard extends StatelessWidget {
   }
 }
 
-// ── Section Title ─────────────────────────────────────────────────────────
-
 class _SectionTitle extends StatelessWidget {
   final String title, subtitle;
   const _SectionTitle({required this.title, required this.subtitle});
@@ -661,17 +662,77 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-// ── Export Bar ────────────────────────────────────────────────────────────
+// ── Export Bar (UPDATED with PDF Generation & Loading States) ───────────────
 
-class _ExportBar extends StatelessWidget {
+class _ExportBar extends StatefulWidget {
   final AnalysisResult result;
   final AppStrings s;
   const _ExportBar({required this.result, required this.s});
 
   @override
+  State<_ExportBar> createState() => _ExportBarState();
+}
+
+class _ExportBarState extends State<_ExportBar> {
+  bool _isSharing = false;
+  bool _isDownloading = false;
+
+  // Force an English instance of AppStrings for the PDF
+  final AppStrings _enStrings = const AppStrings('en');
+
+  Future<void> _handlePdfAction(bool isShare) async {
+    if (isShare) {
+      setState(() => _isSharing = true);
+    } else {
+      setState(() => _isDownloading = true);
+    }
+
+    try {
+      // Pass the forced English strings (_enStrings) to the PDF generator
+      final file = await _generatePdf(widget.result, _enStrings);
+
+      if (isShare) {
+        // Share the generated PDF file directly, using English text for the share dialogue
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: _enStrings.reportHeader,
+        );
+      } else {
+        // Confirm download success to user (This keeps the UI SnackBar in the user's selected language)
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('PDF Downloaded to:\n${file.path}'),
+              backgroundColor: AppTheme.healthyGreen,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.s.somethingWentWrong),
+            backgroundColor: AppTheme.brokenRed,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSharing = false;
+          _isDownloading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       color: isDark ? const Color(0xFF0F2318) : cs.surfaceContainerHighest,
       padding: EdgeInsets.fromLTRB(
@@ -680,9 +741,17 @@ class _ExportBar extends StatelessWidget {
         children: [
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: _shareText,
-              icon: const Icon(Icons.share_rounded),
-              label: Text(s.share),
+              onPressed: (_isSharing || _isDownloading)
+                  ? null
+                  : () => _handlePdfAction(true),
+              icon: _isSharing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.share_rounded),
+              label:
+                  Text(widget.s.share), // Button label stays in user's language
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppTheme.healthyGreen,
                 side: BorderSide(
@@ -697,9 +766,18 @@ class _ExportBar extends StatelessWidget {
           Expanded(
             flex: 2,
             child: FilledButton.icon(
-              onPressed: _shareText,
-              icon: const Icon(Icons.picture_as_pdf_rounded),
-              label: Text(s.exportPdf),
+              onPressed: (_isSharing || _isDownloading)
+                  ? null
+                  : () => _handlePdfAction(false),
+              icon: _isDownloading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.picture_as_pdf_rounded),
+              label: Text(
+                  widget.s.downloadPdf), // Button label stays in user's language
               style: FilledButton.styleFrom(
                 backgroundColor: AppTheme.healthyGreen,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -713,26 +791,255 @@ class _ExportBar extends StatelessWidget {
     );
   }
 
-  void _shareText() {
-    final r = result;
-    final text = '''
-${s.reportHeader}
-${s.batch}: ${r.batchName}
-${s.date}: ${r.analyzedAt.day}/${r.analyzedAt.month}/${r.analyzedAt.year}
+  // ── PDF Generation Logic ───────────────────────────────────────────────────
 
-${s.integrityScore}: ${r.integrityScore.toStringAsFixed(1)}%
-${s.totalGrains}: ${r.counts.total}
+  Future<File> _generatePdf(AnalysisResult r, AppStrings s) async {
+    final pdf = pw.Document();
 
-${s.grainBreakdown}:
-  • ${s.healthy}: ${r.counts.healthy} (${r.counts.healthyPct.toStringAsFixed(1)}%)
-  • ${s.threeQuarterBroken}: ${r.counts.threeQuarterBroken} (${r.counts.threeQuarterBrokenPct.toStringAsFixed(1)}%)
-  • ${s.halfBroken}: ${r.counts.halfBroken} (${r.counts.halfBrokenPct.toStringAsFixed(1)}%)
-  • ${s.impurity}: ${r.counts.impurity} (${r.counts.impurityPct.toStringAsFixed(1)}%)
-  • ${s.discolored}: ${r.counts.discolored} (${r.counts.discoloredPct.toStringAsFixed(1)}%)
+    // We can safely use the default Helvetica font now since the text is guaranteed to be English
+    final font = pw.Font.helvetica();
 
-${s.processingTime}: ${(r.processingTime.inMilliseconds / 1000).toStringAsFixed(2)}${s.seconds}
-${s.generatedBy}
-''';
-    Share.share(text);
+    // Helper to convert Flutter colors to PDF Colors
+    PdfColor toPdfColor(Color c) => PdfColor.fromInt(c.value);
+
+    pdf.addPage(
+      pw.MultiPage(
+        theme: pw.ThemeData.withFont(base: font),
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
+          return [
+            // Header
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(s.reportHeader,
+                        style: pw.TextStyle(
+                            fontSize: 24,
+                            fontWeight: pw.FontWeight.bold,
+                            color: toPdfColor(AppTheme.healthyGreen))),
+                    pw.SizedBox(height: 4),
+                    pw.Text('${s.batch}: ${r.batchName}',
+                        style: const pw.TextStyle(fontSize: 14)),
+                    pw.Text(
+                        '${s.date}: ${r.analyzedAt.day}/${r.analyzedAt.month}/${r.analyzedAt.year}',
+                        style: const pw.TextStyle(
+                            fontSize: 12, color: PdfColors.grey700)),
+                  ],
+                ),
+                pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  decoration: pw.BoxDecoration(
+                    color: toPdfColor(AppTheme.healthyGreen).shade(0.1),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(12)),
+                    border: pw.Border.all(
+                        color: toPdfColor(AppTheme.healthyGreen), width: 2),
+                  ),
+                  child: pw.Column(
+                    children: [
+                      pw.Text('${r.integrityScore.toStringAsFixed(0)}%',
+                          style: pw.TextStyle(
+                              fontSize: 22,
+                              fontWeight: pw.FontWeight.bold,
+                              color: toPdfColor(AppTheme.healthyGreen))),
+                      pw.Text(s.score,
+                          style: const pw.TextStyle(
+                              fontSize: 10, color: PdfColors.grey700)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            pw.Divider(color: PdfColors.grey300, height: 30, thickness: 1),
+
+            // Variety & Time summary
+            pw.Row(children: [
+              pw.Text('${s.varietyDetected}: ',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text(r.detectedVariety),
+              pw.SizedBox(width: 20),
+              pw.Text('${s.totalGrains}: ',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text('${r.counts.total}'),
+              pw.SizedBox(width: 20),
+              pw.Text('${s.processingTime}: ',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                  '${(r.processingTime.inMilliseconds / 1000).toStringAsFixed(1)}${s.seconds}'),
+            ]),
+            pw.SizedBox(height: 30),
+
+            // Grain Breakdown Chart Section
+            pw.Text(s.grainBreakdown,
+                style:
+                    pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 20),
+
+            if (r.counts.total > 0)
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // The colored Pie Chart (Inline legends removed to prevent overlap)
+                  pw.SizedBox(
+                    width: 200,
+                    height: 200,
+                    child: pw.Chart(
+                      grid: pw.PieGrid(),
+                      datasets: [
+                        if (r.counts.healthy > 0)
+                          pw.PieDataSet(
+                            value: r.counts.healthy.toDouble(),
+                            color: toPdfColor(AppTheme.healthyGreen),
+                          ),
+                        if (r.counts.threeQuarterBroken > 0)
+                          pw.PieDataSet(
+                            value: r.counts.threeQuarterBroken.toDouble(),
+                            color: toPdfColor(const Color(0xFFFFD600)),
+                          ),
+                        if (r.counts.halfBroken > 0)
+                          pw.PieDataSet(
+                            value: r.counts.halfBroken.toDouble(),
+                            color: toPdfColor(AppTheme.brokenRed),
+                          ),
+                        if (r.counts.impurity > 0)
+                          pw.PieDataSet(
+                            value: r.counts.impurity.toDouble(),
+                            color: toPdfColor(const Color(0xFFDD44FF)),
+                          ),
+                        if (r.counts.discolored > 0)
+                          pw.PieDataSet(
+                            value: r.counts.discolored.toDouble(),
+                            color: toPdfColor(const Color(0xFF4488FF)),
+                          ),
+                      ],
+                    ),
+                  ),
+                  pw.SizedBox(width: 40),
+
+                  // The Data Table next to the chart acts as the perfect non-overlapping legend
+                  pw.Expanded(
+                      child: pw.Table(columnWidths: {
+                    0: const pw.FlexColumnWidth(2),
+                    1: const pw.FlexColumnWidth(1),
+                    2: const pw.FlexColumnWidth(1),
+                  }, children: [
+                    _buildPdfTableRow(s.healthy, r.counts.healthy,
+                        r.counts.healthyPct, toPdfColor(AppTheme.healthyGreen)),
+                    _buildPdfTableRow(
+                        s.threeQuarterBroken,
+                        r.counts.threeQuarterBroken,
+                        r.counts.threeQuarterBrokenPct,
+                        toPdfColor(const Color(0xFFFFD600))),
+                    _buildPdfTableRow(s.halfBroken, r.counts.halfBroken,
+                        r.counts.halfBrokenPct, toPdfColor(AppTheme.brokenRed)),
+                    _buildPdfTableRow(
+                        s.impurity,
+                        r.counts.impurity,
+                        r.counts.impurityPct,
+                        toPdfColor(const Color(0xFFDD44FF))),
+                    _buildPdfTableRow(
+                        s.discolored,
+                        r.counts.discolored,
+                        r.counts.discoloredPct,
+                        toPdfColor(const Color(0xFF4488FF))),
+                  ]))
+                ],
+              ),
+
+            // Appended Images (if any)
+            if (r.morphologyImageBytes != null ||
+                r.colorImageBytes != null) ...[
+              pw.SizedBox(height: 40),
+              pw.Text(s.annotatedImages,
+                  style: pw.TextStyle(
+                      fontSize: 18, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 16),
+            ],
+
+            if (r.morphologyImageBytes != null) ...[
+              pw.Text(s.morphologyAnalysis,
+                  style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold, fontSize: 14)),
+              pw.SizedBox(height: 8),
+              pw.Container(
+                height: 250,
+                child: pw.Image(pw.MemoryImage(r.morphologyImageBytes!),
+                    fit: pw.BoxFit.contain),
+              ),
+              pw.SizedBox(height: 20),
+            ],
+
+            if (r.colorImageBytes != null) ...[
+              pw.Text(s.colorAnalysis,
+                  style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold, fontSize: 14)),
+              pw.SizedBox(height: 8),
+              pw.Container(
+                height: 250,
+                child: pw.Image(pw.MemoryImage(r.colorImageBytes!),
+                    fit: pw.BoxFit.contain),
+              ),
+            ],
+
+            // Footer
+            pw.Spacer(),
+            pw.Divider(color: PdfColors.grey300),
+            pw.Center(
+              child: pw.Text(s.generatedBy,
+                  style: const pw.TextStyle(
+                      color: PdfColors.grey500, fontSize: 10)),
+            )
+          ];
+        },
+      ),
+    );
+
+    // ── Save PDF to Device Downloads Directory ──
+
+    // Attempt to get the public Downloads directory (Works on Android, Windows, macOS, Linux)
+    Directory? dir = await getDownloadsDirectory();
+
+    // Fallback to Documents directory for iOS (iOS strict sandboxing prevents direct Downloads folder access)
+    dir ??= await getApplicationDocumentsDirectory();
+
+    // Fallback dir for Desktop if path_provider fails entirely
+    final directoryPath = dir.path.isNotEmpty ? dir.path : '.';
+    final file = File(
+        '$directoryPath/Chal_AI_Report_${r.batchName.replaceAll(' ', '_')}.pdf');
+
+    await file.writeAsBytes(await pdf.save());
+    return file;
+  }
+
+  pw.TableRow _buildPdfTableRow(
+      String label, int count, double pct, PdfColor color) {
+    return pw.TableRow(children: [
+      pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(vertical: 4),
+          child: pw.Row(children: [
+            pw.Container(
+                width: 8,
+                height: 8,
+                decoration:
+                    pw.BoxDecoration(color: color, shape: pw.BoxShape.circle)),
+            pw.SizedBox(width: 8),
+            pw.Text(label, style: const pw.TextStyle(fontSize: 11)),
+          ])),
+      pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(vertical: 4),
+        child: pw.Text('$count',
+            style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+      ),
+      pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(vertical: 4),
+        child: pw.Text('${pct.toStringAsFixed(1)}%',
+            style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
+      ),
+    ]);
   }
 }

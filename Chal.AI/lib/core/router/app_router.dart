@@ -57,7 +57,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: false,
     refreshListenable: Listenable.merge([authListenable, profileListenable]),
     redirect: (context, state) {
       final authState = ref.read(authStateProvider);

@@ -79,16 +79,18 @@ class RunPodAiService implements AiService {
       '/${ApiConfig.supabaseUploadBucket}/$objectPath',
     );
 
-    final response = await _client.post(
-      uri,
-      headers: {
-        'apikey': ApiConfig.supabaseAnonKey,
-        'Authorization': 'Bearer ${ApiConfig.supabaseAnonKey}',
-        'Content-Type': contentType,
-        'x-upsert': 'true',
-      },
-      body: bytes,
-    );
+    final response = await _client
+        .post(
+          uri,
+          headers: {
+            'apikey': ApiConfig.supabaseAnonKey,
+            'Authorization': 'Bearer ${ApiConfig.supabaseAnonKey}',
+            'Content-Type': contentType,
+            'x-upsert': 'true',
+          },
+          body: bytes,
+        )
+        .timeout(const Duration(seconds: 30));
 
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(
@@ -108,19 +110,21 @@ class RunPodAiService implements AiService {
       'https://api.runpod.ai/v2/${ApiConfig.runpodEndpointId}/runsync',
     );
 
-    final response = await _client.post(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${ApiConfig.runpodApiKey}',
-      },
-      body: jsonEncode({
-        'input': {
-          'image_url': imageUrl,
-          'confidence_threshold': 0.06,
-        },
-      }),
-    );
+    final response = await _client
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${ApiConfig.runpodApiKey}',
+          },
+          body: jsonEncode({
+            'input': {
+              'image_url': imageUrl,
+              'confidence_threshold': 0.06,
+            },
+          }),
+        )
+        .timeout(const Duration(seconds: 120));
 
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(
@@ -155,7 +159,9 @@ class RunPodAiService implements AiService {
 
   Future<Uint8List?> _downloadBytes(String url) async {
     try {
-      final response = await _client.get(Uri.parse(url));
+      final response = await _client
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 30));
       if (response.statusCode == 200) return response.bodyBytes;
       debugPrint(
         '*** Annotated image download failed (${response.statusCode}): $url',

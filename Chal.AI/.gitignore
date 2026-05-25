@@ -49,3 +49,6 @@ app.*.map.json
 
 # Environment secrets — never commit
 .env.json
+android/key.properties
+android/app/*.jks
+*.jks

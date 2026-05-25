@@ -10,23 +10,45 @@ class HistoryService {
   HistoryService(this._client);
 
   Future<void> saveAnalysis({required Map<String, dynamic> data}) async {
-    await _client.from('rice_analysis_records').insert(data);
+    try {
+      await _client.from('rice_analysis_records').insert(data);
+    } catch (e) {
+      debugPrint('saveAnalysis failed: $e');
+      throw Exception(
+        'Failed to save analysis. Please check your connection and try again.',
+      );
+    }
   }
 
   Future<List<AnalysisRecord>> fetchHistory(String userId) async {
-    final rows = await _client
-        .from('rice_analysis_records')
-        .select()
-        .eq('user_id', userId)
-        .order('created_at', ascending: false)
-        .limit(50);
-    return (rows as List)
-        .map((r) => AnalysisRecord.fromJson(r as Map<String, dynamic>))
-        .toList();
+    try {
+      final rows = await _client
+          .from('rice_analysis_records')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false)
+          .limit(50);
+      return (rows as List)
+          .map((r) => AnalysisRecord.fromJson(r as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('fetchHistory failed: $e');
+      throw Exception(
+        'Failed to load history. Please check your connection and try again.',
+      );
+    }
   }
 
   Future<void> deleteRecord(String recordId) async {
-    await _client.from('rice_analysis_records').delete().eq('id', recordId);
+    try {
+      await _client
+          .from('rice_analysis_records')
+          .delete()
+          .eq('id', recordId);
+    } catch (e) {
+      debugPrint('deleteRecord failed: $e');
+      throw Exception('Failed to delete record. Please try again.');
+    }
   }
 
   Future<String?> uploadImage({

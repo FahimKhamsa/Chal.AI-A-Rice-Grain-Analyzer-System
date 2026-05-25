@@ -20,6 +20,19 @@ class Settings(BaseSettings):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
 
+    # ── Security ───────────────────────────────────────────────────────────────
+    # Set API_SECRET_KEY in production to enforce API key authentication.
+    # Clients must send this value in the X-Api-Key header.
+    # Leave empty to disable (development only).
+    API_SECRET_KEY: str = ""
+
+    # CORS: comma-separated allowed origins, or "*" for development.
+    # Production example: "https://app.chalai.com,https://chalai.com"
+    CORS_ALLOWED_ORIGINS: str = "*"
+
+    # Maximum allowed upload file size in bytes (default: 10 MB)
+    MAX_UPLOAD_SIZE_BYTES: int = 10 * 1024 * 1024
+
     # ── Model identifiers ──────────────────────────────────────────────────────
     DINO_MODEL_ID: str = "IDEA-Research/grounding-dino-base"
     SAM_MODEL_ID: str = "facebook/sam-vit-base"

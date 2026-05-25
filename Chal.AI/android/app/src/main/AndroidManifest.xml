@@ -15,13 +15,7 @@
         android:label="Chal.AI"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
-        <!--
-          usesCleartextTraffic="true" allows HTTP (not just HTTPS) connections.
-          This is needed during development when the FastAPI server runs locally
-          on your LAN without TLS.  Remove or set to false for production when
-          deploying behind HTTPS.
-        -->
+        android:usesCleartextTraffic="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -21,8 +21,9 @@ import uuid
 from datetime import datetime, timezone
 
 import torch
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
+from app.api.dependencies import limiter, verify_api_key
 from app.core.config import settings
 from app.core.ml_manager import models
 from app.schemas.analysis import (
@@ -42,7 +43,10 @@ from app.services.cv_pipeline import (
 from app.services.image_processing import bytes_to_rgb, resize_for_inference
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+
+_ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/jpg", "image/png"}
+
+router = APIRouter(dependencies=[Depends(verify_api_key)])
 
 
 @router.post(
@@ -54,20 +58,23 @@ router = APIRouter()
         "Returns structured quality metrics plus base64-encoded annotated images."
     ),
 )
+@limiter.limit("20/minute")
 def analyze_rice_image(
+    request: Request,
     file: UploadFile = File(...),
     batch_name: str = Form(""),
 ) -> AnalysisResponse:
     """
     Full analysis pipeline:
-      1. Decode uploaded image bytes → RGB array.
-      2. Resize for GPU efficiency (≤ 1280 px longest side).
-      3. Grounding DINO detection → bounding boxes.
-      4. SAM segmentation → binary masks.
-      5. Morphological quality classification (collect grain records).
-      6. HSV colour anomaly detection (on non-dust grains).
-      7. Draw combined morphology annotation (discolored → orange border).
-      8. Map raw reports → Flutter-compatible structured response.
+      1. Validate content type and file size.
+      2. Decode uploaded image bytes → RGB array.
+      3. Resize for GPU efficiency (≤ 1280 px longest side).
+      4. Grounding DINO detection → bounding boxes.
+      5. SAM segmentation → binary masks.
+      6. Morphological quality classification (collect grain records).
+      7. HSV colour anomaly detection (on non-dust grains).
+      8. Draw combined morphology annotation (discolored → orange border).
+      9. Map raw reports → Flutter-compatible structured response.
     """
     if models.dino_model is None or models.sam_model is None:
         raise HTTPException(
@@ -75,20 +82,38 @@ def analyze_rice_image(
             detail="AI models are not yet loaded. Please retry in a moment.",
         )
 
+    # ── 0. Validate file type ──────────────────────────────────────────────────
+    if file.content_type not in _ALLOWED_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"Unsupported file type '{file.content_type}'. "
+                "Only JPEG and PNG images are accepted."
+            ),
+        )
+
     start_time = time.monotonic()
 
     try:
-        # ── 1. Decode image ────────────────────────────────────────────────────
+        # ── 1. Read and validate file size ─────────────────────────────────────
         raw_bytes = file.file.read()
+        if len(raw_bytes) > settings.MAX_UPLOAD_SIZE_BYTES:
+            max_mb = settings.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large. Maximum allowed size is {max_mb} MB.",
+            )
+
+        # ── 2. Decode image ────────────────────────────────────────────────────
         try:
             img_rgb = bytes_to_rgb(raw_bytes)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
-        # ── 2. Resize ──────────────────────────────────────────────────────────
+        # ── 3. Resize ──────────────────────────────────────────────────────────
         img_rgb = resize_for_inference(img_rgb)
 
-        # ── 3 & 4. DINO detection + SAM segmentation ──────────────────────────
+        # ── 4 & 5. DINO detection + SAM segmentation ──────────────────────────
         use_cuda = models.device == "cuda"
         autocast_ctx = (
             torch.autocast(device_type="cuda", dtype=torch.float16)
@@ -113,10 +138,10 @@ def analyze_rice_image(
                 else []
             )
 
-        # ── 5. Morphological analysis (collect grain records; no drawing yet) ────
+        # ── 6. Morphological analysis ──────────────────────────────────────────
         morph_stats, grain_records, valid_masks = analyze_quality(masks)
 
-        # ── 6. Colour analysis (skip if no valid grains) ───────────────────────
+        # ── 7. Colour analysis ─────────────────────────────────────────────────
         color_stats: dict = {}
         color_img = None
         discolored_indices: set = set()
@@ -129,13 +154,10 @@ def analyze_rice_image(
                 anomaly_threshold=settings.COLOR_ANOMALY_THRESHOLD,
             )
 
-        # ── 7. Draw combined morphology annotation ─────────────────────────────
-        # Discolored grains receive an orange border regardless of break grade.
+        # ── 8. Draw combined morphology annotation ─────────────────────────────
         morph_img = draw_morphology_annotation(img_rgb, grain_records, discolored_indices)
 
-        # ── 8. Map raw reports → structured Flutter response ──────────────────
-        # Discolored is an exclusive category: subtract discolored grains from
-        # the morphology category they were originally assigned to.
+        # ── 9. Map raw reports → structured Flutter response ──────────────────
         morph_deductions: dict[str, int] = {}
         for record in grain_records:
             if record["valid_idx"] != -1 and record["valid_idx"] in discolored_indices:
@@ -197,9 +219,11 @@ def analyze_rice_image(
 
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Unhandled error during rice analysis")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred. Please try again.",
+        )
     finally:
         file.file.close()
-

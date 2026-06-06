@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../analysis/domain/models/analysis_result.dart';
+import '../../data/services/native_notification_service.dart';
 import '../../data/services/notification_service.dart';
 import '../../domain/models/app_notification.dart';
 
@@ -33,8 +34,15 @@ class NotificationState {
   }
 }
 
+final nativeNotificationClientProvider =
+    Provider<NativeNotificationClient>((ref) {
+  return NativeNotificationService.instance;
+});
+
 final notificationServiceProvider = Provider<NotificationService>((ref) {
-  return NotificationService();
+  return NotificationService(
+    nativeNotifications: ref.watch(nativeNotificationClientProvider),
+  );
 });
 
 final notificationProvider =
@@ -119,6 +127,7 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
       ...current.where((n) => n.id != notification.id),
     ];
     await _persist(next);
+    await _service.showPhoneNotification(notification);
   }
 
   Future<void> markRead(String id) async {

@@ -205,6 +205,8 @@ sequenceDiagram
     participant RunPod
     participant CVPipeline
     participant HistoryService
+    participant Notifications
+    participant Phone
 
     User->>CaptureScreen: Pick/capture image
     CaptureScreen->>CaptureProvider: pickFromGallery / captureFromCamera
@@ -218,10 +220,14 @@ sequenceDiagram
     Supabase-->>RunPodService: Public image URL
 
     RunPodService->>RunPod: POST /runsync { image_url, confidence_threshold: 0.06 }
+    alt RunPod returns IN_QUEUE / IN_PROGRESS
+        RunPod-->>RunPodService: Queued job id
+        RunPodService->>RunPod: Poll GET /status/{job_id}
+    end
     RunPod->>CVPipeline: process_rice_analysis(image_url)
     CVPipeline->>Supabase: Upload morphology + color images to analysis-results
     CVPipeline-->>RunPod: JSON counts + image URLs
-    RunPod-->>RunPodService: Analysis output
+    RunPod-->>RunPodService: COMPLETED analysis output
 
     RunPodService->>Supabase: Download annotated images from result URLs
     RunPodService-->>CaptureProvider: AnalysisResult

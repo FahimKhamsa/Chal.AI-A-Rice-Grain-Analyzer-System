@@ -11,9 +11,12 @@ import 'core/providers/theme_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
+import 'features/notifications/data/services/native_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await NativeNotificationService.instance.initialize();
 
   await Supabase.initialize(
     url: ApiConfig.supabaseUrl,
@@ -38,11 +41,24 @@ void main() async {
   );
 }
 
-class ChalAiApp extends ConsumerWidget {
+class ChalAiApp extends ConsumerStatefulWidget {
   const ChalAiApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ChalAiApp> createState() => _ChalAiAppState();
+}
+
+class _ChalAiAppState extends ConsumerState<ChalAiApp> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NativeNotificationService.instance.requestPermission();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     final lang = ref.watch(languageProvider);
     final themeMode = ref.watch(themeModeProvider);

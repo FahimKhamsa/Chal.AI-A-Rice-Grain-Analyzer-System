@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/models/app_notification.dart';
+import 'native_notification_service.dart';
 
 const _kNotificationsKey = 'app_notifications_v1';
 
@@ -11,8 +12,14 @@ class NotificationService {
   static const int maxNotifications = 50;
 
   final SharedPreferences? _prefs;
+  final NativeNotificationClient _nativeNotifications;
 
-  NotificationService({SharedPreferences? prefs}) : _prefs = prefs;
+  NotificationService({
+    SharedPreferences? prefs,
+    NativeNotificationClient nativeNotifications =
+        const NoopNativeNotificationClient(),
+  })  : _prefs = prefs,
+        _nativeNotifications = nativeNotifications;
 
   Future<SharedPreferences> get _store async {
     return _prefs ?? SharedPreferences.getInstance();
@@ -55,6 +62,14 @@ class NotificationService {
   Future<void> clearNotifications() async {
     final prefs = await _store;
     await prefs.remove(_kNotificationsKey);
+  }
+
+  Future<void> showPhoneNotification(AppNotification notification) async {
+    try {
+      await _nativeNotifications.show(notification);
+    } catch (e) {
+      debugPrint('Phone notification failed: $e');
+    }
   }
 
   List<AppNotification> _sortedAndCapped(

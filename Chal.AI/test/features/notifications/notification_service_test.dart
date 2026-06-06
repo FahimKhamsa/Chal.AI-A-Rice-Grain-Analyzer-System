@@ -1,8 +1,28 @@
+import 'package:chal_ai/features/notifications/data/services/native_notification_service.dart';
 import 'package:chal_ai/features/notifications/data/services/notification_service.dart';
 import 'package:chal_ai/features/notifications/domain/models/app_notification.dart';
 import 'package:chal_ai/features/notifications/presentation/providers/notification_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class FakeNativeNotificationClient implements NativeNotificationClient {
+  final shownNotifications = <AppNotification>[];
+  bool permissionRequested = false;
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<bool> requestPermission() async {
+    permissionRequested = true;
+    return true;
+  }
+
+  @override
+  Future<void> show(AppNotification notification) async {
+    shownNotifications.add(notification);
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -60,6 +80,28 @@ void main() {
 
     await notifier.markAllRead();
     expect(notifier.state.unreadCount, 0);
+  });
+
+  test('NotificationNotifier dispatches phone notification when added',
+      () async {
+    final nativeNotifications = FakeNativeNotificationClient();
+    final service = NotificationService(
+      nativeNotifications: nativeNotifications,
+    );
+    final notifier = NotificationNotifier(service);
+    await Future<void>.delayed(Duration.zero);
+
+    await notifier.addAnalysisFailed(
+      batchName: 'Batch A',
+      errorMessage: 'network error',
+    );
+
+    expect(nativeNotifications.shownNotifications, hasLength(1));
+    expect(
+      nativeNotifications.shownNotifications.single.type,
+      AppNotificationType.analysisFailed,
+    );
+    expect(nativeNotifications.shownNotifications.single.batchName, 'Batch A');
   });
 
   test('NotificationService keeps newest notifications within cap', () async {

@@ -9,6 +9,7 @@ import '../../domain/models/analysis_record.dart';
 import '../providers/history_provider.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/widgets/app_sidebar.dart';
+import '../../../notifications/presentation/widgets/notification_bell_button.dart';
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
@@ -28,6 +29,10 @@ class HistoryScreen extends ConsumerWidget {
         ),
         centerTitle: true,
         elevation: 0,
+        actions: const [
+          NotificationBellButton(),
+          SizedBox(width: 8),
+        ],
       ),
       body: historyAsync.when(
         loading: () => const Center(

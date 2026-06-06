@@ -7,6 +7,7 @@ import '../../../../core/providers/language_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_sidebar.dart';
+import '../../../notifications/presentation/widgets/notification_bell_button.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -43,6 +44,10 @@ class SettingsScreen extends ConsumerWidget {
             fontSize: 18,
           ),
         ),
+        actions: const [
+          NotificationBellButton(),
+          SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
         child: ListView(

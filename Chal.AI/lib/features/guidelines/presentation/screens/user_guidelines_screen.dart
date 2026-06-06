@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_sidebar.dart';
+import '../../../notifications/presentation/widgets/notification_bell_button.dart';
 
 class UserGuidelinesScreen extends ConsumerWidget {
   const UserGuidelinesScreen({super.key});
@@ -32,6 +33,10 @@ class UserGuidelinesScreen extends ConsumerWidget {
         centerTitle: true,
         elevation: 0,
         scrolledUnderElevation: 0,
+        actions: const [
+          NotificationBellButton(),
+          SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
         child: ListView(

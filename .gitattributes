@@ -1,0 +1,4 @@
+# Gradle wrapper line endings
+Chal.AI/android/gradlew text eol=lf
+Chal.AI/android/gradlew.bat text eol=crlf whitespace=cr-at-eol
+Chal.AI/android/gradle/wrapper/gradle-wrapper.jar binary

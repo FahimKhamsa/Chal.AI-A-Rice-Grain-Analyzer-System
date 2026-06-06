@@ -1,13 +1,118 @@
-# Claude Code session data — contains memory, plans, conversation history
+# Local assistant and toolchain state
 .claude/
+.tools/
 
-# Environment secrets
+# Environment secrets and local config
 .env
 .env.*
 *.env
+**/.env
+**/.env.*
+**/*.env
+*.local
+/env
+/env.json
+!/.env.example
+!/.env.sample
+!**/.env.example
+!**/.env.sample
 
-# OS noise
+# OS and editor noise
 .DS_Store
 Thumbs.db
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
 
-App Releases
+# Flutter and Dart
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.pub-cache/
+**/.pub/
+**/build/
+**/coverage/
+**/doc/api/
+
+# Android and Gradle
+**/android/.gradle/
+**/android/.kotlin/
+**/android/local.properties
+**/android/**/local.properties
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/key.properties
+**/*.jks
+**/*.keystore
+
+# iOS and Xcode
+**/ios/.symlinks/
+**/ios/Pods/
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/DerivedData/
+**/xcuserdata/
+**/*.xcuserstate
+**/*.pbxuser
+**/*.mode1v3
+**/*.mode2v3
+**/*.perspectivev3
+
+# Python
+**/__pycache__/
+*.py[cod]
+*$py.class
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.tox/
+**/.nox/
+**/.coverage
+**/.coverage.*
+**/htmlcov/
+**/.venv/
+**/venv/
+**/env/
+**/ENV/
+**/*.egg-info/
+pip-wheel-metadata/
+dist/
+
+# Backend runtime, data, and ML artifacts
+rice_analysis_backend/.cache/
+rice_analysis_backend/models/
+rice_analysis_backend/weights/
+rice_analysis_backend/checkpoints/
+rice_analysis_backend/artifacts/
+rice_analysis_backend/uploads/
+rice_analysis_backend/outputs/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.tflite
+*.safetensors
+*.pkl
+*.joblib
+*.db
+*.sqlite
+*.sqlite3
+
+# App release bundles and symbol files
+/App Releases/
+/App_Releases/
+/releases/
+*.apk
+*.aab
+*.ipa
+*.dSYM.zip
+*.symbols

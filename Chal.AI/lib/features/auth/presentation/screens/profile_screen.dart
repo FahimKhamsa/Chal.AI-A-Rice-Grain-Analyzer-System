@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_sidebar.dart';
+import '../../../notifications/presentation/widgets/notification_bell_button.dart';
 import '../../domain/models/user_profile.dart';
 import '../providers/profile_provider.dart';
 
@@ -152,7 +153,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 fontSize: 18,
               ),
             ),
-            actions: const [],
+            actions: const [
+              NotificationBellButton(),
+              SizedBox(width: 8),
+            ],
           ),
           body: SafeArea(
             child: SingleChildScrollView(
@@ -246,7 +250,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ),
                               const SizedBox(width: 8),
                               Material(
-                                color: AppTheme.healthyGreen.withValues(alpha: 0.12),
+                                color: AppTheme.healthyGreen
+                                    .withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(10),
                                 child: InkWell(
                                   onTap: _saving
@@ -278,7 +283,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ],
                           )
                         : Material(
-                            color: AppTheme.healthyGreen.withValues(alpha: 0.12),
+                            color:
+                                AppTheme.healthyGreen.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                             child: InkWell(
                               onTap: () => _enterEditMode(profile),

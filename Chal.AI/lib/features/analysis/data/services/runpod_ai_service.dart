@@ -2,14 +2,16 @@
 //
 // Production AI service backed by RunPod Serverless (Grounding DINO + SAM).
 //
-// Full call flow for every analyzeImage() call:
-//   1. Read XFile bytes → upload to Supabase Storage (rice-uploads bucket)
-//   2. POST {image_url, confidence_threshold} to RunPod /runsync
-//      → if queued, poll /status/{job_id} until the worker completes
-//   3. Download annotated images (morphology + color) from Supabase result URLs
-//   4. Map snake_case RunPod output → AnalysisResult domain model
+// Two modes of operation:
 //
-// RunPod /runsync response envelope from run_serverless.py:
+// SYNCHRONOUS (legacy): analyzeImage()
+//   POST → /runsync → poll if queued → parse result → return AnalysisResult
+//
+// ASYNCHRONOUS (default): submitJobAsync() + pollJobOnce()
+//   POST → /run     → returns jobId immediately
+//   Later: pollJobOnce(jobId) → returns RunPodPollResult (pending/done/failed)
+//
+// RunPod /runsync / /run response envelope from run_serverless.py:
 //   { "status": "COMPLETED",
 //     "output": { "status": "success",
 //                 "output": { <inference.py dict> } } }
@@ -26,6 +28,37 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/config/api_config.dart';
 import '../../domain/models/analysis_result.dart';
 import 'mock_ai_service.dart'; // exports the AiService interface
+
+// ── Poll result returned by pollJobOnce() ──────────────────────────────────
+
+enum RunPodJobState { pending, completed, failed }
+
+class RunPodPollResult {
+  final RunPodJobState state;
+
+  /// Non-null when [state] == [RunPodJobState.completed].
+  final Map<String, dynamic>? output;
+
+  /// Non-null when [state] == [RunPodJobState.failed].
+  final String? errorMessage;
+
+  const RunPodPollResult._({
+    required this.state,
+    this.output,
+    this.errorMessage,
+  });
+
+  factory RunPodPollResult.pending() =>
+      const RunPodPollResult._(state: RunPodJobState.pending);
+
+  factory RunPodPollResult.completed(Map<String, dynamic> output) =>
+      RunPodPollResult._(state: RunPodJobState.completed, output: output);
+
+  factory RunPodPollResult.failed(String message) =>
+      RunPodPollResult._(state: RunPodJobState.failed, errorMessage: message);
+}
+
+// ── Main service ───────────────────────────────────────────────────────────
 
 class RunPodAiService implements AiService {
   static const Duration _defaultRequestTimeout = Duration(seconds: 120);
@@ -55,21 +88,23 @@ class RunPodAiService implements AiService {
         _pollInterval = pollInterval,
         _maxPollDuration = maxPollDuration;
 
+  // ── AiService interface (synchronous path — kept for compatibility) ────────
+
   @override
   Future<AnalysisResult> analyzeImage({
     required XFile imageFile,
     required String batchName,
   }) async {
-    debugPrint('=== [RunPodAiService] Starting Analysis ===');
+    debugPrint('=== [RunPodAiService] Starting Sync Analysis ===');
     debugPrint('--> File: ${imageFile.name}  Batch: $batchName');
 
     // 1. Upload to Supabase so RunPod can fetch it by URL
     final imageBytes = await imageFile.readAsBytes();
-    final imageUrl = await _uploadToSupabase(imageBytes, imageFile.name);
+    final imageUrl = await uploadToSupabase(imageBytes, imageFile.name);
     debugPrint('--> Supabase upload URL: $imageUrl');
 
     // 2. Submit to RunPod and wait synchronously for the result
-    final output = await _submitJob(imageUrl);
+    final output = await _submitJobSync(imageUrl);
 
     // 3. Download annotated images from the Supabase result URLs
     final morphUrl = output['morphology_image_url'] as String?;
@@ -80,8 +115,8 @@ class RunPodAiService implements AiService {
     debugPrint('=== [RunPodAiService] Complete ===');
     debugPrint('--> Integrity Score: ${output['integrity_score']}%');
 
-    // 5. Parse → domain model
-    return _parseResult(
+    // 4. Parse → domain model
+    return parseResult(
       output: output,
       imagePath: imageFile.path,
       batchName: batchName,
@@ -90,9 +125,102 @@ class RunPodAiService implements AiService {
     );
   }
 
+  // ── Async job submission (/run endpoint) ──────────────────────────────────
+
+  /// Upload the image to Supabase, then POST to RunPod /run.
+  /// Returns `(jobId, imageUrl)` immediately without waiting for inference.
+  Future<({String jobId, String imageUrl})> submitJobAsync({
+    required Uint8List imageBytes,
+    required String filename,
+  }) async {
+    debugPrint('=== [RunPodAiService] Submitting Async Job ===');
+    final imageUrl = await uploadToSupabase(imageBytes, filename);
+    debugPrint('--> Supabase upload URL: $imageUrl');
+
+    final uri = Uri.parse(
+      'https://api.runpod.ai/v2/${ApiConfig.runpodEndpointId}/run',
+    );
+
+    final response = await _client
+        .post(
+          uri,
+          headers: _runPodHeaders,
+          body: jsonEncode({
+            'input': {
+              'image_url': imageUrl,
+              'confidence_threshold': 0.06,
+            },
+          }),
+        )
+        .timeout(_requestTimeout);
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(
+        'RunPod /run request failed (${response.statusCode}): ${response.body}',
+      );
+    }
+
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final jobId = _jobIdOf(body);
+    if (jobId == null || jobId.isEmpty) {
+      throw Exception(
+        'RunPod did not return a job ID. Body: ${response.body}',
+      );
+    }
+
+    debugPrint('--> RunPod async job submitted. jobId: $jobId');
+    return (jobId: jobId, imageUrl: imageUrl);
+  }
+
+  /// Poll RunPod /status/{jobId} once and return the current state.
+  /// Does NOT block — caller decides whether to retry.
+  Future<RunPodPollResult> pollJobOnce(String jobId) async {
+    final body = await _fetchJobStatus(jobId);
+    final status = _statusOf(body);
+    debugPrint('--> RunPod poll [$jobId]: $status');
+
+    if (status == 'COMPLETED') {
+      try {
+        final output = _extractOutput(body, status);
+        return RunPodPollResult.completed(output);
+      } catch (e) {
+        return RunPodPollResult.failed(e.toString());
+      }
+    }
+
+    if (_isPendingStatus(status)) {
+      return RunPodPollResult.pending();
+    }
+
+    // Terminal failure statuses
+    final errorMsg = _buildErrorMessage(status, body);
+    return RunPodPollResult.failed(errorMsg);
+  }
+
+  /// Download annotated result images from URLs returned by RunPod.
+  Future<Uint8List?> downloadResultImage(String url) =>
+      _downloadBytes(url);
+
+  /// Parse the raw RunPod output map into an AnalysisResult domain model.
+  AnalysisResult buildAnalysisResult({
+    required Map<String, dynamic> output,
+    required String imagePath,
+    required String batchName,
+    Uint8List? morphBytes,
+    Uint8List? colorBytes,
+  }) {
+    return parseResult(
+      output: output,
+      imagePath: imagePath,
+      batchName: batchName,
+      morphBytes: morphBytes,
+      colorBytes: colorBytes,
+    );
+  }
+
   // ── Supabase Storage upload ────────────────────────────────────────────────
 
-  Future<String> _uploadToSupabase(Uint8List bytes, String filename) async {
+  Future<String> uploadToSupabase(Uint8List bytes, String filename) async {
     final ext = filename.split('.').last.toLowerCase();
     final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
     final objectPath =
@@ -127,9 +255,9 @@ class RunPodAiService implements AiService {
         '/${ApiConfig.supabaseUploadBucket}/$objectPath';
   }
 
-  // ── RunPod job submission + queued-job polling ───────────────────────────
+  // ── RunPod job submission + queued-job polling (sync path) ────────────────
 
-  Future<Map<String, dynamic>> _submitJob(String imageUrl) async {
+  Future<Map<String, dynamic>> _submitJobSync(String imageUrl) async {
     final uri = Uri.parse(
       'https://api.runpod.ai/v2/${ApiConfig.runpodEndpointId}/runsync',
     );
@@ -279,6 +407,15 @@ class RunPodAiService implements AiService {
     }
   }
 
+  String _buildErrorMessage(String status, Map<String, dynamic> body) {
+    if (status == 'FAILED') return 'RunPod job failed: ${_errorMessageOf(body)}';
+    if (status == 'CANCELLED' || status == 'CANCELED') {
+      return 'RunPod job was cancelled.';
+    }
+    if (status == 'TIMED_OUT') return 'RunPod job timed out.';
+    return 'RunPod returned unexpected status: $status';
+  }
+
   String _errorMessageOf(Map<String, dynamic> body) {
     final directError = body['error'] ?? body['message'];
     if (directError != null) return directError.toString();
@@ -344,7 +481,7 @@ class RunPodAiService implements AiService {
   //   three_quarter_broken, half_broken, processing_time_ms, integrity_score …
   // FastAPI (RealAiService) returns camelCase — they are handled separately.
 
-  AnalysisResult _parseResult({
+  AnalysisResult parseResult({
     required Map<String, dynamic> output,
     required String imagePath,
     required String batchName,

@@ -2,6 +2,25 @@ import 'dart:typed_data';
 
 import '../../../analysis/domain/models/analysis_result.dart';
 
+/// Status of an analysis job submitted to RunPod asynchronously.
+enum AnalysisStatus {
+  analysing,
+  completed,
+  failed;
+
+  String get storageValue => switch (this) {
+        AnalysisStatus.analysing => 'analysing',
+        AnalysisStatus.completed => 'completed',
+        AnalysisStatus.failed => 'failed',
+      };
+
+  static AnalysisStatus fromStorageValue(String? value) => switch (value) {
+        'analysing' => AnalysisStatus.analysing,
+        'failed' => AnalysisStatus.failed,
+        _ => AnalysisStatus.completed, // default / legacy records
+      };
+}
+
 class AnalysisRecord {
   final String id;
   final String userId;
@@ -16,6 +35,11 @@ class AnalysisRecord {
   final String? colorImageUrl;
   final DateTime createdAt;
 
+  // ── Async job tracking ───────────────────────────────────────────────────
+  final AnalysisStatus status;
+  final String? runpodJobId;
+  final String? errorMessage;
+
   const AnalysisRecord({
     required this.id,
     required this.userId,
@@ -29,6 +53,9 @@ class AnalysisRecord {
     this.morphologyImageUrl,
     this.colorImageUrl,
     required this.createdAt,
+    this.status = AnalysisStatus.completed,
+    this.runpodJobId,
+    this.errorMessage,
   });
 
   String get detectedVariety => colorReport['detectedVariety'] as String? ?? '';
@@ -39,6 +66,37 @@ class AnalysisRecord {
         (counts['halfBroken'] as num? ?? 0).toInt() +
         (counts['impurity'] as num? ?? 0).toInt() +
         (counts['discolored'] as num? ?? 0).toInt();
+  }
+
+  AnalysisRecord copyWith({
+    AnalysisStatus? status,
+    String? runpodJobId,
+    String? errorMessage,
+    double? integrityScore,
+    Map<String, dynamic>? counts,
+    Map<String, dynamic>? morphologyReport,
+    Map<String, dynamic>? colorReport,
+    String? morphologyImageUrl,
+    String? colorImageUrl,
+    int? processingTimeMs,
+  }) {
+    return AnalysisRecord(
+      id: id,
+      userId: userId,
+      batchName: batchName,
+      analyzedAt: analyzedAt,
+      processingTimeMs: processingTimeMs ?? this.processingTimeMs,
+      integrityScore: integrityScore ?? this.integrityScore,
+      counts: counts ?? this.counts,
+      morphologyReport: morphologyReport ?? this.morphologyReport,
+      colorReport: colorReport ?? this.colorReport,
+      morphologyImageUrl: morphologyImageUrl ?? this.morphologyImageUrl,
+      colorImageUrl: colorImageUrl ?? this.colorImageUrl,
+      createdAt: createdAt,
+      status: status ?? this.status,
+      runpodJobId: runpodJobId ?? this.runpodJobId,
+      errorMessage: errorMessage ?? this.errorMessage,
+    );
   }
 
   factory AnalysisRecord.fromJson(Map<String, dynamic> json) {
@@ -59,6 +117,9 @@ class AnalysisRecord {
       morphologyImageUrl: json['morphology_image_url'] as String?,
       colorImageUrl: json['color_image_url'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
+      status: AnalysisStatus.fromStorageValue(json['status'] as String?),
+      runpodJobId: json['runpod_job_id'] as String?,
+      errorMessage: json['error_message'] as String?,
     );
   }
 
@@ -109,6 +170,9 @@ class AnalysisRecord {
     String userId, {
     String? morphologyImagePath,
     String? colorImagePath,
+    AnalysisStatus status = AnalysisStatus.completed,
+    String? runpodJobId,
+    String? errorMessage,
   }) {
     return {
       'user_id': userId,
@@ -142,9 +206,42 @@ class AnalysisRecord {
         'detectedVariety': r.detectedVariety,
         'varietyConfidence': r.varietyConfidence,
       },
+      'status': status.storageValue,
+      if (runpodJobId != null) 'runpod_job_id': runpodJobId,
+      if (errorMessage != null) 'error_message': errorMessage,
       if (morphologyImagePath != null)
         'morphology_image_url': morphologyImagePath,
       if (colorImagePath != null) 'color_image_url': colorImagePath,
+    };
+  }
+
+  /// Minimal placeholder map for a newly submitted async job
+  /// (before results are available).
+  static Map<String, dynamic> toPlaceholderMap({
+    required String id,
+    required String userId,
+    required String batchName,
+    required String runpodJobId,
+  }) {
+    final now = DateTime.now().toIso8601String();
+    return {
+      'id': id,
+      'user_id': userId,
+      'batch_name': batchName,
+      'analyzed_at': now,
+      'processing_time_ms': 0,
+      'integrity_score': 0.0,
+      'counts': {
+        'healthy': 0,
+        'threeQuarterBroken': 0,
+        'halfBroken': 0,
+        'impurity': 0,
+        'discolored': 0,
+      },
+      'morphology_report': {},
+      'color_report': {},
+      'status': AnalysisStatus.analysing.storageValue,
+      'runpod_job_id': runpodJobId,
     };
   }
 }

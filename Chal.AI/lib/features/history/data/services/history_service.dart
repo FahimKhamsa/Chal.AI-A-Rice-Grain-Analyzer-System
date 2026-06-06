@@ -20,6 +20,25 @@ class HistoryService {
     }
   }
 
+  /// Update specific fields of an existing record (used by the background
+  /// poller when a RunPod async job finishes or fails).
+  Future<void> updateRecord(
+    String recordId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      await _client
+          .from('rice_analysis_records')
+          .update(data)
+          .eq('id', recordId);
+    } catch (e) {
+      debugPrint('updateRecord failed: $e');
+      throw Exception(
+        'Failed to update analysis record. Please check your connection.',
+      );
+    }
+  }
+
   Future<List<AnalysisRecord>> fetchHistory(String userId) async {
     try {
       final rows = await _client

@@ -80,14 +80,18 @@ class HistoryScreen extends ConsumerWidget {
               ),
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            itemCount: records.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) => _HistoryCard(
-              record: records[index],
-              onDelete: () =>
-                  ref.read(historyProvider.notifier).delete(records[index].id),
+          return RefreshIndicator(
+            color: AppTheme.healthyGreen,
+            onRefresh: () async => ref.invalidate(historyProvider),
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              itemCount: records.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) => _HistoryCard(
+                record: records[index],
+                onDelete: () =>
+                    ref.read(historyProvider.notifier).delete(records[index].id),
+              ),
             ),
           );
         },
@@ -106,16 +110,46 @@ class _HistoryCard extends ConsumerStatefulWidget {
   ConsumerState<_HistoryCard> createState() => _HistoryCardState();
 }
 
-class _HistoryCardState extends ConsumerState<_HistoryCard> {
+class _HistoryCardState extends ConsumerState<_HistoryCard>
+    with SingleTickerProviderStateMixin {
   bool _loading = false;
+  late AnimationController _pulseCtrl;
+  late Animation<double> _pulseAnim;
 
-  Color _scoreColor(double score) {
-    if (score >= 80) return AppTheme.healthyGreen;
-    if (score >= 60) return AppTheme.discoloredAmber;
-    return AppTheme.brokenRed;
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _pulseAnim = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
+    );
+    if (widget.record.status == AnalysisStatus.analysing) {
+      _pulseCtrl.repeat(reverse: true);
+    }
   }
 
+  @override
+  void didUpdateWidget(_HistoryCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.record.status == AnalysisStatus.analysing) {
+      if (!_pulseCtrl.isAnimating) _pulseCtrl.repeat(reverse: true);
+    } else {
+      _pulseCtrl.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+
   Future<void> _openRecord() async {
+    if (widget.record.status != AnalysisStatus.completed) return;
     setState(() => _loading = true);
     try {
       final svc = ref.read(historyServiceProvider);
@@ -143,51 +177,38 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
     final s = ref.watch(appStringsProvider);
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final score = widget.record.integrityScore;
-    final scoreColor = _scoreColor(score);
+    final status = widget.record.status;
     final dateStr = _formatDate(widget.record.createdAt.toLocal());
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: _loading ? null : _openRecord,
+        onTap: (_loading || status == AnalysisStatus.analysing) ? null : _openRecord,
         borderRadius: BorderRadius.circular(16),
         child: Ink(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF131E17) : Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: cs.outlineVariant),
+            border: Border.all(
+              color: status == AnalysisStatus.analysing
+                  ? AppTheme.discoloredAmber.withValues(alpha: 0.5)
+                  : status == AnalysisStatus.failed
+                      ? AppTheme.brokenRed.withValues(alpha: 0.4)
+                      : cs.outlineVariant,
+            ),
           ),
           child: Row(
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: scoreColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: scoreColor.withValues(alpha: 0.3)),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      score.toStringAsFixed(0),
-                      style: GoogleFonts.inter(
-                          color: scoreColor,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800),
-                    ),
-                    Text('%',
-                        style: GoogleFonts.inter(
-                            color: scoreColor.withValues(alpha: 0.7),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600)),
-                  ],
-                ),
+              // ── Left status widget ──────────────────────────────────────
+              _StatusBadge(
+                record: widget.record,
+                pulseAnim: _pulseAnim,
               ),
+
               const SizedBox(width: 14),
+
+              // ── Text info ───────────────────────────────────────────────
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,15 +221,7 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
                           fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 3),
-                    Text(
-                      widget.record.detectedVariety.isNotEmpty
-                          ? widget.record.detectedVariety
-                          : s.unknownVariety,
-                      style: GoogleFonts.inter(
-                          color: AppTheme.healthyGreen,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500),
-                    ),
+                    _SubtitleText(record: widget.record, s: s),
                     const SizedBox(height: 3),
                     Text(
                       dateStr,
@@ -219,6 +232,8 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
                   ],
                 ),
               ),
+
+              // ── Right trailing ──────────────────────────────────────────
               if (_loading)
                 const SizedBox(
                   width: 20,
@@ -226,9 +241,10 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
                   child: CircularProgressIndicator(
                       strokeWidth: 2, color: AppTheme.healthyGreen),
                 )
-              else
+              else if (status == AnalysisStatus.completed)
                 Icon(Icons.chevron_right_rounded,
                     color: cs.onSurface.withValues(alpha: 0.24), size: 20),
+
               IconButton(
                 icon: Icon(Icons.delete_outline_rounded,
                     color: cs.onSurface.withValues(alpha: 0.24), size: 20),
@@ -243,18 +259,8 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
 
   String _formatDate(DateTime dt) {
     final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
     final ampm = dt.hour < 12 ? 'AM' : 'PM';
@@ -294,6 +300,159 @@ class _HistoryCardState extends ConsumerState<_HistoryCard> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Status badge widget ───────────────────────────────────────────────────────
+
+class _StatusBadge extends StatelessWidget {
+  final AnalysisRecord record;
+  final Animation<double> pulseAnim;
+
+  const _StatusBadge({required this.record, required this.pulseAnim});
+
+  @override
+  Widget build(BuildContext context) {
+    final status = record.status;
+
+    if (status == AnalysisStatus.analysing) {
+      return AnimatedBuilder(
+        animation: pulseAnim,
+        builder: (_, __) => Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: AppTheme.discoloredAmber
+                .withValues(alpha: 0.08 + pulseAnim.value * 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppTheme.discoloredAmber
+                  .withValues(alpha: 0.3 + pulseAnim.value * 0.3),
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.0,
+                  color: AppTheme.discoloredAmber
+                      .withValues(alpha: 0.5 + pulseAnim.value * 0.5),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '…',
+                style: TextStyle(
+                  color: AppTheme.discoloredAmber,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (status == AnalysisStatus.failed) {
+      return Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: AppTheme.brokenRed.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.brokenRed.withValues(alpha: 0.3)),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline_rounded,
+                color: AppTheme.brokenRed, size: 22),
+          ],
+        ),
+      );
+    }
+
+    // Completed — show integrity score
+    final score = record.integrityScore;
+    final scoreColor = score >= 80
+        ? AppTheme.healthyGreen
+        : score >= 60
+            ? AppTheme.discoloredAmber
+            : AppTheme.brokenRed;
+
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        color: scoreColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scoreColor.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            score.toStringAsFixed(0),
+            style: GoogleFonts.inter(
+                color: scoreColor, fontSize: 16, fontWeight: FontWeight.w800),
+          ),
+          Text('%',
+              style: GoogleFonts.inter(
+                  color: scoreColor.withValues(alpha: 0.7),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Subtitle text (status-aware) ──────────────────────────────────────────────
+
+class _SubtitleText extends StatelessWidget {
+  final AnalysisRecord record;
+  final AppStrings s;
+
+  const _SubtitleText({required this.record, required this.s});
+
+  @override
+  Widget build(BuildContext context) {
+    final status = record.status;
+
+    if (status == AnalysisStatus.analysing) {
+      return Text(
+        s.statusAnalysing,
+        style: GoogleFonts.inter(
+            color: AppTheme.discoloredAmber,
+            fontSize: 12,
+            fontWeight: FontWeight.w600),
+      );
+    }
+
+    if (status == AnalysisStatus.failed) {
+      return Text(
+        s.statusFailed,
+        style: GoogleFonts.inter(
+            color: AppTheme.brokenRed,
+            fontSize: 12,
+            fontWeight: FontWeight.w600),
+      );
+    }
+
+    // Completed
+    return Text(
+      record.detectedVariety.isNotEmpty
+          ? record.detectedVariety
+          : s.unknownVariety,
+      style: GoogleFonts.inter(
+          color: AppTheme.healthyGreen,
+          fontSize: 12,
+          fontWeight: FontWeight.w500),
     );
   }
 }

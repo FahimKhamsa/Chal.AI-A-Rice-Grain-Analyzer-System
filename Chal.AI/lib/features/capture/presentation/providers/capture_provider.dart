@@ -7,24 +7,31 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../analysis/data/services/mock_ai_service.dart';
 import '../../../analysis/data/services/real_ai_service.dart';
 import '../../../analysis/data/services/runpod_ai_service.dart';
+import '../../../analysis/data/services/runpod_poll_service.dart';
 import '../../../analysis/domain/models/analysis_result.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../history/data/services/history_service.dart';
-import '../../../history/domain/models/analysis_record.dart';
 import '../../../history/presentation/providers/history_provider.dart';
 import '../../../notifications/presentation/providers/notification_provider.dart';
 
-/// --dart-define=USE_MOCK=true   → MockAiService  (no backend, instant demo)
+/// --dart-define=USE_MOCK=true    → MockAiService  (no backend, instant demo)
 /// --dart-define=USE_RUNPOD=false → RealAiService (local FastAPI dev server)
-/// default                        → RunPodAiService (production)
+/// default                         → RunPodAiService async (production)
 const bool _useMock = bool.fromEnvironment('USE_MOCK', defaultValue: false);
 const bool _useRunPod = bool.fromEnvironment('USE_RUNPOD', defaultValue: true);
 
-enum CaptureStatus { idle, imageSelected, analyzing, done, error }
+enum CaptureStatus {
+  idle,
+  imageSelected,
+  analyzing,
+  asyncSubmitted, // async job accepted — show popup & go to history
+  done,           // (mock/real sync path only)
+  error,
+}
 
 class CaptureState {
   final String batchName;
@@ -82,17 +89,21 @@ class CaptureState {
 
 class CaptureNotifier extends StateNotifier<CaptureState> {
   final AiService _aiService;
+  final RunPodAiService? _runpodService;
+  final RunPodPollService? _pollService;
   final ImagePicker _picker;
-  final HistoryService _historyService;
   final String? _userId;
   final NotificationNotifier _notifications;
+  final HistoryNotifier _historyNotifier;
 
   CaptureNotifier(
     this._aiService,
+    this._runpodService,
+    this._pollService,
     this._picker,
-    this._historyService,
     this._userId,
     this._notifications,
+    this._historyNotifier,
   ) : super(const CaptureState());
 
   void setBatchName(String name) {
@@ -132,14 +143,76 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
     );
   }
 
+  /// Submit an analysis. Uses async path (RunPod /run) in production,
+  /// or falls back to sync path for mock / real FastAPI services.
   Future<AnalysisResult?> startAnalysis() async {
     final xfile = state.selectedXFile;
     if (xfile == null) return null;
     state = state.copyWith(status: CaptureStatus.analyzing);
-    return _runAnalysis(xfile);
+
+    // Use the async RunPod path when the service is RunPodAiService
+    if (_runpodService != null && _pollService != null && _userId != null) {
+      return _runAnalysisAsync(xfile);
+    }
+
+    // Sync path (mock or local FastAPI)
+    return _runAnalysisSync(xfile);
   }
 
-  Future<AnalysisResult?> _runAnalysis(XFile xfile) async {
+  // ── Async RunPod path (/run endpoint) ────────────────────────────────────
+
+  Future<AnalysisResult?> _runAnalysisAsync(XFile xfile) async {
+    final batchName = state.batchName;
+    final userId = _userId!;
+    final recordId = const Uuid().v4();
+
+    try {
+      final imageBytes = await xfile.readAsBytes();
+
+      // 1. Submit to RunPod /run → get jobId immediately
+      final (:jobId, :imageUrl) = await _runpodService!.submitJobAsync(
+        imageBytes: imageBytes,
+        filename: xfile.name,
+      );
+      debugPrint('[CaptureNotifier] Async job submitted: $jobId');
+
+      // 2. Insert placeholder record in Supabase (status = analysing)
+      await _historyNotifier.savePlaceholder(
+        recordId: recordId,
+        batchName: batchName,
+        runpodJobId: jobId,
+      );
+
+      // 3. Register job with the background poller
+      _pollService!.track(
+        jobId: jobId,
+        recordId: recordId,
+        batchName: batchName,
+        imagePath: imageUrl,
+        userId: userId,
+      );
+
+      // 4. Signal the UI to show the "analysis started" popup
+      state = state.copyWith(status: CaptureStatus.asyncSubmitted);
+      return null; // no result yet — comes via push notification later
+    } catch (e) {
+      final message = e.toString();
+      debugPrint('[CaptureNotifier] Async submission failed: $message');
+      state = state.copyWith(
+        status: CaptureStatus.error,
+        errorMessage: message,
+      );
+      await _notifications.addAnalysisFailed(
+        batchName: batchName,
+        errorMessage: message,
+      );
+      return null;
+    }
+  }
+
+  // ── Sync path (mock / local FastAPI) ─────────────────────────────────────
+
+  Future<AnalysisResult?> _runAnalysisSync(XFile xfile) async {
     try {
       final result = await _aiService.analyzeImage(
         imageFile: xfile,
@@ -147,41 +220,6 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
       );
       state = state.copyWith(status: CaptureStatus.done, result: result);
       await _notifications.addAnalysisCompleted(result);
-      final userId = _userId;
-      if (userId != null) {
-        try {
-          final morphPath = result.morphologyImageBytes != null
-              ? await _historyService.uploadImage(
-                  userId: userId,
-                  analysisId: result.id,
-                  bytes: result.morphologyImageBytes!,
-                  filename: 'morphology.jpg')
-              : null;
-          final colorPath = result.colorImageBytes != null
-              ? await _historyService.uploadImage(
-                  userId: userId,
-                  analysisId: result.id,
-                  bytes: result.colorImageBytes!,
-                  filename: 'color.jpg')
-              : null;
-          await _historyService.saveAnalysis(
-            data: AnalysisRecord.toDatabaseMap(
-              result,
-              userId,
-              morphologyImagePath: morphPath,
-              colorImagePath: colorPath,
-            ),
-          );
-        } catch (e) {
-          final message = e.toString();
-          debugPrint('History save failed: $message');
-          await _notifications.addHistorySaveFailed(
-            result: result,
-            errorMessage: message,
-          );
-          state = state.copyWith(historySaveError: message);
-        }
-      }
       return result;
     } catch (e) {
       final message = e.toString();
@@ -211,15 +249,23 @@ final aiServiceProvider = Provider<AiService>((ref) {
   return RunPodAiService();
 });
 
+/// Provides a RunPodAiService instance only when USE_RUNPOD is true.
+final runpodAiServiceProvider = Provider<RunPodAiService?>((ref) {
+  if (_useMock || !_useRunPod) return null;
+  return ref.watch(aiServiceProvider) as RunPodAiService;
+});
+
 final imagePickerProvider = Provider<ImagePicker>((ref) => ImagePicker());
 
 final captureProvider =
     StateNotifierProvider<CaptureNotifier, CaptureState>((ref) {
   return CaptureNotifier(
     ref.watch(aiServiceProvider),
+    ref.watch(runpodAiServiceProvider),
+    _useMock || !_useRunPod ? null : ref.watch(runPodPollServiceProvider),
     ref.watch(imagePickerProvider),
-    ref.watch(historyServiceProvider),
     ref.watch(currentUserProvider)?.id,
     ref.read(notificationProvider.notifier),
+    ref.read(historyProvider.notifier),
   );
 });

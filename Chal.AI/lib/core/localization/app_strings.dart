@@ -113,6 +113,22 @@ class AppStrings {
       ? 'বিশ্লেষণ শুরু করতে ছবি আপলোড করুন'
       : 'Upload an image to start analysis';
 
+  // ── Async analysis popup ──────────────────────────────────────────────────
+  String get analysisStarted =>
+      isBn ? 'বিশ্লেষণ শুরু হয়েছে!' : 'Analysis Started!';
+  String get analysisStartedMessage => isBn
+      ? 'আপনার ছবি প্রক্রিয়াকরণ করা হচ্ছে। সম্পন্ন হলে আপনাকে নোটিফিকেশন পাঠানো হবে।'
+      : 'Your image is being processed. You will be notified once the results are ready.';
+  String get goToHistory => isBn ? 'ইতিহাসে যান' : 'Go to History';
+  String get dismiss => isBn ? 'ঠিক আছে' : 'OK';
+
+  // ── History status badges ─────────────────────────────────────────────────
+  String get statusAnalysing => isBn ? 'বিশ্লেষণ চলছে' : 'Analysing';
+  String get statusCompleted => isBn ? 'সম্পন্ন' : 'Completed';
+  String get statusFailed => isBn ? 'ব্যর্থ' : 'Failed';
+  String get analysisFailed => isBn ? 'বিশ্লেষণ ব্যর্থ হয়েছে' : 'Analysis Failed';
+  String get tapToRetry => isBn ? 'পুনরায় চেষ্টা করতে ট্যাপ করুন' : 'Tap to retry';
+
   // ── Settings screen ───────────────────────────────────────────────────────
   String get settings => isBn ? 'সেটিংস' : 'Settings';
   String get about => isBn ? 'পরিচিতি' : 'About';

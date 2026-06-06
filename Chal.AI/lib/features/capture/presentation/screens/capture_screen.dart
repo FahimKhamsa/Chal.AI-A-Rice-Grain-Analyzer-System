@@ -59,6 +59,16 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     final mq = MediaQuery.of(context);
 
     ref.listen(captureProvider, (prev, next) {
+      // ── Async path: job submitted → show popup ──────────────────────────
+      if (next.status == CaptureStatus.asyncSubmitted &&
+          prev?.status != CaptureStatus.asyncSubmitted) {
+        _batchController.clear();
+        _batchFocusNode.unfocus();
+        _showAnalysisStartedDialog(context, s, notifier);
+        return;
+      }
+
+      // ── Sync path: analysis done → navigate to result ───────────────────
       if (next.status == CaptureStatus.done && next.result != null) {
         context.push(AppRoutes.analysisResult, extra: next.result);
         _batchController.clear();
@@ -167,6 +177,155 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
             if (state.status == CaptureStatus.analyzing)
               const AnalyzingOverlay(),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showAnalysisStartedDialog(
+    BuildContext context,
+    AppStrings s,
+    CaptureNotifier notifier,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cs = Theme.of(context).colorScheme;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        backgroundColor: isDark ? const Color(0xFF131E17) : cs.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        insetPadding:
+            const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── Icon ────────────────────────────────────────────────────
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF2ECC71), Color(0xFF27AE60)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.healthyGreen.withValues(alpha: 0.35),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.cloud_upload_rounded,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // ── Title ────────────────────────────────────────────────────
+              Text(
+                s.analysisStarted,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: cs.onSurface,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // ── Body ─────────────────────────────────────────────────────
+              Text(
+                s.analysisStartedMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: cs.onSurface.withValues(alpha: 0.6),
+                  fontSize: 14,
+                  height: 1.55,
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              // ── Actions ──────────────────────────────────────────────────
+              Row(
+                children: [
+                  // OK button
+                  Expanded(
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: cs.outlineVariant,
+                          ),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        notifier.reset();
+                      },
+                      child: Text(
+                        s.dismiss,
+                        style: TextStyle(
+                          color: cs.onSurface.withValues(alpha: 0.6),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  // Go to History button
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.healthyGreen,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        notifier.reset();
+                        context.push(AppRoutes.history);
+                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.history_rounded,
+                              color: Colors.white, size: 18),
+                          const SizedBox(width: 6),
+                          Text(
+                            s.goToHistory,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

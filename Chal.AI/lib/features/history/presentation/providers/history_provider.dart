@@ -27,6 +27,26 @@ class HistoryNotifier extends AsyncNotifier<List<AnalysisRecord>> {
     ref.invalidateSelf();
   }
 
+  /// Insert a placeholder record for an async job that is still in progress.
+  /// The background poller will update it once RunPod finishes.
+  Future<void> savePlaceholder({
+    required String recordId,
+    required String batchName,
+    required String runpodJobId,
+  }) async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+    await ref.read(historyServiceProvider).saveAnalysis(
+      data: AnalysisRecord.toPlaceholderMap(
+        id: recordId,
+        userId: user.id,
+        batchName: batchName,
+        runpodJobId: runpodJobId,
+      ),
+    );
+    ref.invalidateSelf();
+  }
+
   Future<void> delete(String recordId) async {
     await ref.read(historyServiceProvider).deleteRecord(recordId);
     ref.invalidateSelf();

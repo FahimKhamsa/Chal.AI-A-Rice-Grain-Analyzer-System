@@ -16,6 +16,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../history/data/services/history_service.dart';
 import '../../../history/domain/models/analysis_record.dart';
 import '../../../history/presentation/providers/history_provider.dart';
+import '../../../notifications/presentation/providers/notification_provider.dart';
 
 /// --dart-define=USE_MOCK=true   → MockAiService  (no backend, instant demo)
 /// --dart-define=USE_RUNPOD=false → RealAiService (local FastAPI dev server)
@@ -71,7 +72,9 @@ class CaptureState {
       status: status ?? this.status,
       result: result ?? this.result,
       errorMessage: errorMessage ?? this.errorMessage,
-      historySaveError: clearHistorySaveError ? null : (historySaveError ?? this.historySaveError),
+      historySaveError: clearHistorySaveError
+          ? null
+          : (historySaveError ?? this.historySaveError),
       isFlashOn: isFlashOn ?? this.isFlashOn,
     );
   }
@@ -82,9 +85,15 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
   final ImagePicker _picker;
   final HistoryService _historyService;
   final String? _userId;
+  final NotificationNotifier _notifications;
 
-  CaptureNotifier(this._aiService, this._picker, this._historyService, this._userId)
-      : super(const CaptureState());
+  CaptureNotifier(
+    this._aiService,
+    this._picker,
+    this._historyService,
+    this._userId,
+    this._notifications,
+  ) : super(const CaptureState());
 
   void setBatchName(String name) {
     state = state.copyWith(batchName: name.isEmpty ? 'Batch A' : name);
@@ -137,6 +146,7 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
         batchName: state.batchName,
       );
       state = state.copyWith(status: CaptureStatus.done, result: result);
+      await _notifications.addAnalysisCompleted(result);
       final userId = _userId;
       if (userId != null) {
         try {
@@ -163,15 +173,26 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
             ),
           );
         } catch (e) {
-          debugPrint('History save failed: $e');
-          state = state.copyWith(historySaveError: e.toString());
+          final message = e.toString();
+          debugPrint('History save failed: $message');
+          await _notifications.addHistorySaveFailed(
+            result: result,
+            errorMessage: message,
+          );
+          state = state.copyWith(historySaveError: message);
         }
       }
       return result;
     } catch (e) {
+      final message = e.toString();
+      final failedBatchName = state.batchName;
       state = state.copyWith(
         status: CaptureStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: message,
+      );
+      await _notifications.addAnalysisFailed(
+        batchName: failedBatchName,
+        errorMessage: message,
       );
       return null;
     }
@@ -199,5 +220,6 @@ final captureProvider =
     ref.watch(imagePickerProvider),
     ref.watch(historyServiceProvider),
     ref.watch(currentUserProvider)?.id,
+    ref.read(notificationProvider.notifier),
   );
 });

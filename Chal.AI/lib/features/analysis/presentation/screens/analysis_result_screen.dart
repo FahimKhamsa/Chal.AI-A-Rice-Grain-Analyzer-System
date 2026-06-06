@@ -8,6 +8,7 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/image_download.dart';
 import '../../domain/models/analysis_result.dart';
+import '../../../notifications/presentation/widgets/notification_bell_button.dart';
 import '../widgets/full_screen_image_viewer.dart';
 import '../widgets/integrity_score_gauge.dart';
 import '../widgets/stat_chip.dart';
@@ -165,6 +166,11 @@ class _AnalysisResultScreenState extends ConsumerState<AnalysisResultScreen> {
                   const Spacer(),
                   _BatchBadge(name: result.batchName),
                   const SizedBox(width: 12),
+                  const NotificationBellButton(
+                    iconColor: Colors.white,
+                    backgroundColor: Color(0x78000000),
+                  ),
+                  const SizedBox(width: 12),
                   _ShareButton(
                       onTap: () =>
                           context.push(AppRoutes.report, extra: result)),
@@ -225,6 +231,9 @@ class _BatchBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.40,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.black.withAlpha(120),
@@ -237,11 +246,16 @@ class _BatchBadge extends StatelessWidget {
           const Icon(Icons.inventory_2_rounded,
               color: Colors.white70, size: 14),
           const SizedBox(width: 6),
-          Text(name,
+          Flexible(
+            child: Text(
+              name,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13,
-                  fontWeight: FontWeight.w600)),
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
         ],
       ),
     );

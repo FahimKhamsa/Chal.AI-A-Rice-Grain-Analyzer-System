@@ -4,7 +4,8 @@
 //
 // Full call flow for every analyzeImage() call:
 //   1. Read XFile bytes → upload to Supabase Storage (rice-uploads bucket)
-//   2. POST {image_url, confidence_threshold} to RunPod /runsync → wait for result
+//   2. POST {image_url, confidence_threshold} to RunPod /runsync
+//      → if queued, poll /status/{job_id} until the worker completes
 //   3. Download annotated images (morphology + color) from Supabase result URLs
 //   4. Map snake_case RunPod output → AnalysisResult domain model
 //
@@ -27,9 +28,32 @@ import '../../domain/models/analysis_result.dart';
 import 'mock_ai_service.dart'; // exports the AiService interface
 
 class RunPodAiService implements AiService {
-  final http.Client _client;
+  static const Duration _defaultRequestTimeout = Duration(seconds: 120);
+  static const Duration _defaultStatusRequestTimeout = Duration(seconds: 30);
+  static const Duration _defaultFirstPollDelay = Duration(seconds: 3);
+  static const Duration _defaultPollInterval = Duration(seconds: 5);
+  static const Duration _defaultMaxPollDuration = Duration(minutes: 12);
 
-  RunPodAiService({http.Client? client}) : _client = client ?? http.Client();
+  final http.Client _client;
+  final Duration _requestTimeout;
+  final Duration _statusRequestTimeout;
+  final Duration _firstPollDelay;
+  final Duration _pollInterval;
+  final Duration _maxPollDuration;
+
+  RunPodAiService({
+    http.Client? client,
+    Duration requestTimeout = _defaultRequestTimeout,
+    Duration statusRequestTimeout = _defaultStatusRequestTimeout,
+    Duration firstPollDelay = _defaultFirstPollDelay,
+    Duration pollInterval = _defaultPollInterval,
+    Duration maxPollDuration = _defaultMaxPollDuration,
+  })  : _client = client ?? http.Client(),
+        _requestTimeout = requestTimeout,
+        _statusRequestTimeout = statusRequestTimeout,
+        _firstPollDelay = firstPollDelay,
+        _pollInterval = pollInterval,
+        _maxPollDuration = maxPollDuration;
 
   @override
   Future<AnalysisResult> analyzeImage({
@@ -103,7 +127,7 @@ class RunPodAiService implements AiService {
         '/${ApiConfig.supabaseUploadBucket}/$objectPath';
   }
 
-  // ── RunPod job submission (synchronous) ──────────────────────────────────
+  // ── RunPod job submission + queued-job polling ───────────────────────────
 
   Future<Map<String, dynamic>> _submitJob(String imageUrl) async {
     final uri = Uri.parse(
@@ -113,10 +137,7 @@ class RunPodAiService implements AiService {
     final response = await _client
         .post(
           uri,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${ApiConfig.runpodApiKey}',
-          },
+          headers: _runPodHeaders,
           body: jsonEncode({
             'input': {
               'image_url': imageUrl,
@@ -124,7 +145,7 @@ class RunPodAiService implements AiService {
             },
           }),
         )
-        .timeout(const Duration(seconds: 120));
+        .timeout(_requestTimeout);
 
     if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(
@@ -133,26 +154,171 @@ class RunPodAiService implements AiService {
     }
 
     final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final status = body['status'] as String? ?? 'UNKNOWN';
+    return _resolveRunPodBody(body);
+  }
+
+  Future<Map<String, dynamic>> _resolveRunPodBody(
+    Map<String, dynamic> body,
+  ) async {
+    final status = _statusOf(body);
     debugPrint('--> RunPod status: $status');
 
-    if (status == 'FAILED') {
-      throw Exception('RunPod job failed: ${body['error'] ?? 'unknown error'}');
+    if (status == 'COMPLETED') {
+      return _extractOutput(body, status);
     }
-    if (status == 'TIMED_OUT') {
+
+    if (_isPendingStatus(status)) {
+      final jobId = _jobIdOf(body);
+      if (jobId == null || jobId.isEmpty) {
+        throw Exception(
+          'RunPod queued the job but did not return a job id. Status: $status.',
+        );
+      }
+      debugPrint('--> RunPod job queued. Polling status for job: $jobId');
+      return _pollJobUntilComplete(jobId);
+    }
+
+    _throwForTerminalStatus(status, body);
+
+    if (body['output'] != null) {
+      return _extractOutput(body, status);
+    }
+
+    throw Exception('RunPod returned no output (status: $status).');
+  }
+
+  Future<Map<String, dynamic>> _pollJobUntilComplete(String jobId) async {
+    final deadline = DateTime.now().add(_maxPollDuration);
+    var firstPoll = true;
+
+    while (DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(firstPoll ? _firstPollDelay : _pollInterval);
+      firstPoll = false;
+
+      final body = await _fetchJobStatus(jobId);
+      final status = _statusOf(body);
+      debugPrint('--> RunPod poll status [$jobId]: $status');
+
+      if (status == 'COMPLETED') {
+        return _extractOutput(body, status);
+      }
+
+      if (_isPendingStatus(status)) {
+        continue;
+      }
+
+      _throwForTerminalStatus(status, body);
+
+      if (body['output'] != null) {
+        return _extractOutput(body, status);
+      }
+
+      throw Exception('RunPod returned unknown status: $status.');
+    }
+
+    throw Exception(
+      'RunPod job is still queued after ${_maxPollDuration.inMinutes} minutes. '
+      'Please try again later.',
+    );
+  }
+
+  Future<Map<String, dynamic>> _fetchJobStatus(String jobId) async {
+    final uri = Uri.parse(
+      'https://api.runpod.ai/v2/${ApiConfig.runpodEndpointId}/status/$jobId',
+    );
+
+    final response = await _client
+        .get(uri, headers: _runPodHeaders)
+        .timeout(_statusRequestTimeout);
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(
-        'RunPod timed out — worker may be cold-starting. Please try again.',
+        'RunPod status request failed (${response.statusCode}): '
+        '${response.body}',
       );
     }
 
-    final wrapper = body['output'] as Map<String, dynamic>?;
-    if (wrapper == null) {
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Map<String, String> get _runPodHeaders => {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${ApiConfig.runpodApiKey}',
+      };
+
+  String _statusOf(Map<String, dynamic> body) {
+    return body['status']?.toString().toUpperCase() ?? 'UNKNOWN';
+  }
+
+  String? _jobIdOf(Map<String, dynamic> body) {
+    return (body['id'] ?? body['jobId'] ?? body['job_id'])?.toString();
+  }
+
+  bool _isPendingStatus(String status) {
+    return const {
+      'IN_QUEUE',
+      'IN_PROGRESS',
+      'PENDING',
+      'RUNNING',
+      'RETRYING',
+    }.contains(status);
+  }
+
+  void _throwForTerminalStatus(
+    String status,
+    Map<String, dynamic> body,
+  ) {
+    if (status == 'FAILED') {
+      throw Exception('RunPod job failed: ${_errorMessageOf(body)}');
+    }
+    if (status == 'CANCELLED' || status == 'CANCELED') {
+      throw Exception('RunPod job was cancelled.');
+    }
+    if (status == 'TIMED_OUT') {
+      throw Exception('RunPod job timed out before finishing.');
+    }
+  }
+
+  String _errorMessageOf(Map<String, dynamic> body) {
+    final directError = body['error'] ?? body['message'];
+    if (directError != null) return directError.toString();
+
+    final output = body['output'];
+    if (output is Map) {
+      final wrapper = Map<String, dynamic>.from(output);
+      final wrapperError = wrapper['error'] ?? wrapper['message'];
+      if (wrapperError != null) return wrapperError.toString();
+    }
+
+    return 'unknown error';
+  }
+
+  Map<String, dynamic> _extractOutput(
+    Map<String, dynamic> body,
+    String status,
+  ) {
+    final rawOutput = body['output'];
+    if (rawOutput is! Map) {
       throw Exception('RunPod returned no output (status: $status).');
     }
+
+    final wrapper = Map<String, dynamic>.from(rawOutput);
     if (wrapper['status'] == 'error') {
-      throw Exception('Worker error: ${wrapper['message']}');
+      throw Exception('Worker error: ${wrapper['message'] ?? 'unknown error'}');
     }
-    return wrapper['output'] as Map<String, dynamic>;
+
+    final nestedOutput = wrapper['output'];
+    if (nestedOutput is Map) {
+      return Map<String, dynamic>.from(nestedOutput);
+    }
+
+    // Be tolerant of endpoints that return the inference dict directly.
+    if (wrapper.containsKey('integrity_score') ||
+        wrapper.containsKey('counts')) {
+      return wrapper;
+    }
+
+    throw Exception('RunPod returned no analysis output (status: $status).');
   }
 
   // ── Annotated image download ───────────────────────────────────────────────

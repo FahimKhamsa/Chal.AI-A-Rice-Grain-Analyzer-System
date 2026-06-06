@@ -29,6 +29,63 @@ class AppStrings {
       ? 'নেটওয়ার্ক সমস্যা। আপনার ইন্টারনেট সংযোগ পরীক্ষা করুন।'
       : 'Network error. Please check your connection.';
 
+  // ── Notifications ───────────────────────────────────────────────────────
+  String get notifications => isBn ? 'নোটিফিকেশন' : 'Notifications';
+  String get markAllRead => isBn ? 'সবগুলো পড়া হয়েছে' : 'Mark all read';
+  String get clearAll => isBn ? 'সব মুছুন' : 'Clear all';
+  String get noNotificationsYet =>
+      isBn ? 'এখনো কোনো নোটিফিকেশন নেই' : 'No notifications yet';
+  String get notificationsWillAppear => isBn
+      ? 'বিশ্লেষণ সম্পর্কিত আপডেট এখানে দেখা যাবে'
+      : 'Analysis updates will appear here';
+  String notificationUnreadCount(int count) {
+    if (count == 0) return isBn ? 'কোনো অপঠিত নেই' : 'No unread';
+    return isBn ? '$countটি অপঠিত' : '$count unread';
+  }
+
+  String get analysisCompletedNotificationTitle =>
+      isBn ? 'বিশ্লেষণ সম্পন্ন হয়েছে' : 'Analysis completed';
+  String get analysisFailedNotificationTitle =>
+      isBn ? 'বিশ্লেষণ ব্যর্থ হয়েছে' : 'Analysis failed';
+  String get historySaveFailedNotificationTitle =>
+      isBn ? 'রেকর্ড সংরক্ষণ করা যায়নি' : 'Record was not saved';
+  String analysisCompletedNotificationMessage(
+    String batchName,
+    String score,
+  ) {
+    return isBn
+        ? '$batchName ব্যাচের গুণগত মান স্কোর $score%'
+        : '$batchName finished with a $score% integrity score.';
+  }
+
+  String analysisFailedNotificationMessage(String batchName) {
+    return isBn
+        ? '$batchName ব্যাচের বিশ্লেষণ সম্পন্ন করা যায়নি।'
+        : '$batchName could not be analyzed.';
+  }
+
+  String historySaveFailedNotificationMessage(String batchName) {
+    return isBn
+        ? '$batchName ব্যাচের ফলাফল ইতিহাসে সংরক্ষণ করা যায়নি।'
+        : '$batchName was analyzed, but the record was not saved to history.';
+  }
+
+  String notificationTimeAgo(DateTime createdAt) {
+    final diff = DateTime.now().difference(createdAt.toLocal());
+    if (diff.inMinutes < 1) return isBn ? 'এখনই' : 'Just now';
+    if (diff.inHours < 1) {
+      return isBn ? '${diff.inMinutes} মিনিট আগে' : '${diff.inMinutes}m ago';
+    }
+    if (diff.inDays < 1) {
+      return isBn ? '${diff.inHours} ঘণ্টা আগে' : '${diff.inHours}h ago';
+    }
+    if (diff.inDays < 7) {
+      return isBn ? '${diff.inDays} দিন আগে' : '${diff.inDays}d ago';
+    }
+    final local = createdAt.toLocal();
+    return '${local.day}/${local.month}/${local.year}';
+  }
+
   // ── Language toggle ───────────────────────────────────────────────────────
   String get language => isBn ? 'ভাষা' : 'Language';
   String get langEn => 'EN';

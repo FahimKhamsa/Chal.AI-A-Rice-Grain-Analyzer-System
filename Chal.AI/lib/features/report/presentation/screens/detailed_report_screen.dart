@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -13,6 +12,7 @@ import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../analysis/domain/models/analysis_result.dart';
 import '../../../analysis/presentation/widgets/full_screen_image_viewer.dart';
+import '../../../notifications/presentation/widgets/notification_bell_button.dart';
 
 class DetailedReportScreen extends ConsumerStatefulWidget {
   final AnalysisResult result;
@@ -148,6 +148,8 @@ class _ReportHeader extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const NotificationBellButton(),
+                  const SizedBox(width: 8),
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -776,8 +778,8 @@ class _ExportBarState extends State<_ExportBar> {
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.picture_as_pdf_rounded),
-              label: Text(
-                  widget.s.downloadPdf), // Button label stays in user's language
+              label: Text(widget
+                  .s.downloadPdf), // Button label stays in user's language
               style: FilledButton.styleFrom(
                 backgroundColor: AppTheme.healthyGreen,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -800,7 +802,7 @@ class _ExportBarState extends State<_ExportBar> {
     final font = pw.Font.helvetica();
 
     // Helper to convert Flutter colors to PDF Colors
-    PdfColor toPdfColor(Color c) => PdfColor.fromInt(c.value);
+    PdfColor toPdfColor(Color c) => PdfColor.fromInt(c.toARGB32());
 
     pdf.addPage(
       pw.MultiPage(

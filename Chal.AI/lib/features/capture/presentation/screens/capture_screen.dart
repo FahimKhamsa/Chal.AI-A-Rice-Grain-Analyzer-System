@@ -9,6 +9,7 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../../../../core/widgets/app_sidebar.dart';
+import '../../../notifications/presentation/widgets/notification_bell_button.dart';
 import '../providers/capture_provider.dart';
 import '../widgets/analyzing_overlay.dart';
 
@@ -140,9 +141,10 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 
                               const SizedBox(height: 12),
                               _StartAnalysisButton(
-                                onTap: state.status == CaptureStatus.imageSelected
-                                    ? () => notifier.startAnalysis()
-                                    : null,
+                                onTap:
+                                    state.status == CaptureStatus.imageSelected
+                                        ? () => notifier.startAnalysis()
+                                        : null,
                                 hasImage: state.hasImage,
                                 s: s,
                               ),
@@ -191,6 +193,8 @@ class _Header extends ConsumerWidget {
           ),
           const AppLogo(size: 36, showText: true),
           const Spacer(),
+          const NotificationBellButton(),
+          const SizedBox(width: 4),
           const _LangToggleButton(),
         ],
       ),
@@ -520,8 +524,10 @@ class _OutlineBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05);
     final border = Theme.of(context).colorScheme.outlineVariant;
-    final iconColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6);
-    final textColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
+    final iconColor =
+        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6);
+    final textColor =
+        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7);
 
     return GestureDetector(
       onTap: onTap,
@@ -578,7 +584,8 @@ class _StartAnalysisButton extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+              const Icon(Icons.play_arrow_rounded,
+                  color: Colors.white, size: 20),
               const SizedBox(width: 8),
               Text(
                 s.startAnalysis,
@@ -610,13 +617,17 @@ class _StartAnalysisButton extends StatelessWidget {
           Icon(
             Icons.add_photo_alternate_outlined,
             size: 18,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+            color:
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
           ),
           const SizedBox(width: 8),
           Text(
             s.uploadImageToStart,
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.35),
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),

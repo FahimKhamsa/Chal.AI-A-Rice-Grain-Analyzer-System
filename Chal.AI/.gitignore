@@ -52,3 +52,4 @@ app.*.map.json
 android/key.properties
 android/app/*.jks
 *.jks
+*.keystore

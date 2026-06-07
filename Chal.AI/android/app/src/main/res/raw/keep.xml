@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Prevents the Android resource shrinker from removing drawables that are
+    referenced by name at runtime (via getResources().getIdentifier()).
+    flutter_local_notifications looks up the notification icon by string name,
+    so without this the shrinker strips it from release builds.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_chal_ai_notification" />

@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../history/data/services/history_service.dart';
 import '../../../history/domain/models/analysis_record.dart';
 import '../../../history/presentation/providers/history_provider.dart';
+import '../../../notifications/data/services/native_notification_service.dart';
 import '../../../notifications/presentation/providers/notification_provider.dart';
 import 'runpod_ai_service.dart';
 
@@ -76,6 +77,11 @@ class RunPodPollService {
       userId: userId,
     );
     _jobs[jobId] = job;
+
+    // Start the Android foreground service so the Dart isolate is kept alive
+    // even when the user backgrounds or exits the app.
+    NativeNotificationService.instance
+        .startForegroundPolling(batchName: batchName);
 
     final startedAt = DateTime.now();
 
@@ -212,7 +218,13 @@ class RunPodPollService {
         if (colorPath != null) 'color_image_url': colorPath,
       };
 
-      await _historyService.updateRecord(job.recordId, updateData);
+      // Retry Supabase update up to 3 times with a 5 s delay between attempts.
+      // This handles transient DNS / network failures that can occur when Android
+      // briefly suspends and resumes the process around app backgrounding.
+      await _withRetry(() => _historyService.updateRecord(job.recordId, updateData));
+
+      // Stop the foreground service — analysis is done.
+      await NativeNotificationService.instance.stopForegroundPolling();
 
       // Fire push notification
       await _ref
@@ -233,11 +245,15 @@ class RunPodPollService {
   }
 
   Future<void> _markFailed(_PendingJob job, String errorMessage) async {
+    // Stop foreground service whether we succeeded or failed.
+    await NativeNotificationService.instance.stopForegroundPolling();
     try {
-      await _historyService.updateRecord(job.recordId, {
-        'status': AnalysisStatus.failed.storageValue,
-        'error_message': errorMessage,
-      });
+      await _withRetry(
+        () => _historyService.updateRecord(job.recordId, {
+          'status': AnalysisStatus.failed.storageValue,
+          'error_message': errorMessage,
+        }),
+      );
 
       await _ref
           .read(notificationProvider.notifier)
@@ -246,6 +262,27 @@ class RunPodPollService {
       _ref.invalidate(historyProvider);
     } catch (e) {
       debugPrint('[PollService] _markFailed error: $e');
+    }
+  }
+
+  /// Retries [fn] up to 3 times with a 5-second gap on failure.
+  /// Handles transient network / DNS errors that occur when Android
+  /// resumes the app process after a short suspension.
+  static const int _maxRetries = 3;
+  static const Duration _retryDelay = Duration(seconds: 5);
+
+  Future<void> _withRetry(Future<void> Function() fn) async {
+    for (var attempt = 1; attempt <= _maxRetries; attempt++) {
+      try {
+        await fn();
+        return;
+      } catch (e) {
+        if (attempt == _maxRetries) rethrow;
+        debugPrint(
+          '[PollService] Retry $attempt/$_maxRetries after error: $e',
+        );
+        await Future<void>.delayed(_retryDelay);
+      }
     }
   }
 

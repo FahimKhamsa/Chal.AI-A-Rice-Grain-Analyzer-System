@@ -34,6 +34,14 @@ class NativeNotificationService implements NativeNotificationClient {
       'Notifications for Chal.AI analysis results and failures.';
   static const String _notificationIcon = 'ic_chal_ai_notification';
 
+  // Foreground service — separate low-priority channel so the persistent
+  // "Analyzing…" banner doesn't appear as a high-importance notification.
+  static const int _foregroundNotificationId = 888;
+  static const String _fgChannelId = 'chal_ai_fg_polling';
+  static const String _fgChannelName = 'Background analysis';
+  static const String _fgChannelDescription =
+      'Shown while Chal.AI analyzes rice grains in the background.';
+
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
@@ -130,6 +138,78 @@ class NativeNotificationService implements NativeNotificationClient {
     }
 
     return false;
+  }
+
+  // ── Foreground service ───────────────────────────────────────────────────
+  //
+  // Call startForegroundPolling() as soon as a RunPod job is submitted.
+  // This posts a persistent low-priority notification that prevents Android
+  // from freezing / killing the Dart isolate while the Timer.periodic loop
+  // runs in the background.
+  //
+  // Call stopForegroundPolling() once the job reaches a terminal state
+  // (completed or failed) so the persistent notification is dismissed.
+
+  Future<void> startForegroundPolling({String batchName = 'rice grains'}) async {
+    if (kIsWeb) return;
+    await initialize();
+    if (!_initialized) return;
+
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android == null) return;
+
+      // Ensure the foreground-service channel exists (idempotent).
+      await android.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _fgChannelId,
+          _fgChannelName,
+          description: _fgChannelDescription,
+          importance: Importance.low,
+          playSound: false,
+          enableVibration: false,
+          showBadge: false,
+        ),
+      );
+
+      await android.startForegroundService(
+        id: _foregroundNotificationId,
+        title: 'Analyzing $batchName\u2026',
+        body: 'Rice grain analysis is running in the background.',
+        notificationDetails: AndroidNotificationDetails(
+          _fgChannelId,
+          _fgChannelName,
+          channelDescription: _fgChannelDescription,
+          icon: _notificationIcon,
+          importance: Importance.low,
+          priority: Priority.low,
+          ongoing: true,
+          autoCancel: false,
+          playSound: false,
+          enableVibration: false,
+        ),
+        foregroundServiceTypes: {
+          AndroidServiceForegroundType.foregroundServiceTypeDataSync,
+        },
+      );
+
+      debugPrint('[NativeNotification] Foreground service started.');
+    } catch (e) {
+      debugPrint('[NativeNotification] startForegroundPolling failed: $e');
+    }
+  }
+
+  Future<void> stopForegroundPolling() async {
+    if (kIsWeb) return;
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      await android?.stopForegroundService();
+      debugPrint('[NativeNotification] Foreground service stopped.');
+    } catch (e) {
+      debugPrint('[NativeNotification] stopForegroundPolling failed: $e');
+    }
   }
 
   @override

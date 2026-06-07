@@ -110,6 +110,7 @@ rice_analysis_backend/outputs/
 # App release bundles and symbol files
 /App Releases/
 /App_Releases/
+/backups
 /releases/
 *.apk
 *.aab
